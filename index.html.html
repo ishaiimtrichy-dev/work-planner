@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Planner - Cloud Synced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .task-card {
+            transition: all 0.2s ease;
+        }
+        
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .completed-task {
+            opacity: 0.6;
+        }
+        
+        .project-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="glass-card p-8 rounded-xl text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-700 font-semibold">Loading Work Planner...</p>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="hidden fixed inset-0 gradient-bg flex items-center justify-center">
+        <div class="glass-card p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Work Planner</h1>
+                <p class="text-gray-600">Your Daily Command Center</p>
+            </div>
+            
+            <button 
+                id="googleSignInBtn" 
+                class="w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-3 px-6 rounded-lg border-2 border-gray-300 transition flex items-center justify-center gap-3"
+            >
+                <svg width="20" height="20" viewBox="0 0 20 20">
+                    <path fill="#4285F4" d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z"/>
+                    <path fill="#34A853" d="M13.46 15.13c-.83.59-1.96 1-3.46 1-2.64 0-4.88-1.74-5.68-4.15H1.07v2.52C2.72 17.75 6.09 20 10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45z"/>
+                    <path fill="#FBBC05" d="M3.99 10c0-.69.12-1.35.32-1.97V5.51H1.07A9.973 9.973 0 000 10c0 1.61.39 3.14 1.07 4.49l3.24-2.52c-.2-.62-.32-1.28-.32-1.97z"/>
+                    <path fill="#EA4335" d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z"/>
+                </svg>
+                Sign in with Google
+            </button>
+            
+            <p class="text-xs text-gray-600 mt-6 text-center">
+                ☁️ Your data syncs across all devices<br/>
+                🔒 Secure & Private - Only you can access
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App (Hidden until logged in) -->
+    <div id="mainApp" class="hidden">
+        <!-- Header -->
+        <div class="gradient-bg text-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold">Work Planner</h1>
+                    <p class="text-purple-100 mt-1">Your Daily Command Center</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-sm text-purple-100">Signed in as</p>
+                        <p id="userEmail" class="font-semibold"></p>
+                    </div>
+                    <button 
+                        onclick="signOut()" 
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition text-sm font-semibold"
+                    >
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left Column - Daily Briefing & AI Input -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- AI-Powered Task Input -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">✨ Add Task (Natural Language)</h2>
+                        <div class="space-y-3">
+                            <textarea 
+                                id="aiInput" 
+                                placeholder="e.g., 'Add review wireframes to Website Redesign project next Monday' or 'Create weekly standup meeting every Monday at 10am'"
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
+                                rows="3"
+                            ></textarea>
+                            <button 
+                                onclick="processNaturalLanguage()" 
+                                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+                            >
+                                🤖 Process with AI
+                            </button>
+                            <div id="aiResponse" class="hidden mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Briefing -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">📅 What Do I Have Today?</h2>
+                            <button 
+                                onclick="refreshBriefing()" 
+                                class="text-purple-600 hover:text-purple-800 font-semibold text-sm"
+                            >
+                                ↻ Refresh
+                            </button>
+                        </div>
+                        <div id="todayBriefing" class="space-y-3">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- All Tasks -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">📋 All Tasks</h2>
+                        <div class="mb-4 flex gap-2">
+                            <button onclick="filterTasks('all')" class="filter-btn px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold">All</button>
+                            <button onclick="filterTasks('today')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700">Today</button>
+                            <button onclick="filterTasks('upcoming')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700">Upcoming</button>
+                            <button onclick="filterTasks('completed')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700">Completed</button>
+                        </div>
+                        <div id="allTasks" class="space-y-3">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Projects & Quick Actions -->
+                <div class="space-y-6">
+                    
+                    <!-- Add Project -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">🎯 Add Project</h2>
+                        <div class="space-y-3">
+                            <input 
+                                id="projectName" 
+                                type="text" 
+                                placeholder="Project Name"
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                            />
+                            <textarea 
+                                id="projectGoals" 
+                                placeholder="Year-end goals & key expectations"
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
+                                rows="3"
+                            ></textarea>
+                            <button 
+                                onclick="addProject()" 
+                                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                            >
+                                Add Project
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Projects List -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">📂 My Projects</h2>
+                        <div id="projectsList" class="space-y-2">
+                            <!-- Projects will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Task Add -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">➕ Quick Add Task</h2>
+                        <div class="space-y-3">
+                            <select 
+                                id="taskProject" 
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                            >
+                                <option value="">Select Project</option>
+                            </select>
+                            <input 
+                                id="taskTitle" 
+                                type="text" 
+                                placeholder="Task title"
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                            />
+                            <input 
+                                id="taskDate" 
+                                type="date" 
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                            />
+                            <select 
+                                id="taskRecurring" 
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                            >
+                                <option value="none">One-time</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                            <button 
+                                onclick="addTask()" 
+                                class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                            >
+                                Add Task
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sync Status -->
+                    <div class="glass-card rounded-xl shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">☁️ Cloud Sync</h2>
+                        <div id="syncStatus" class="text-sm text-gray-600">
+                            <p>✅ Connected & Syncing</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDVA4MSKhu8ww1SzGkHU8Rf5UeMDe1VVUY",
+            authDomain: "task-planner-97937.firebaseapp.com",
+            projectId: "task-planner-97937",
+            storageBucket: "task-planner-97937.firebasestorage.app",
+            messagingSenderId: "373644415076",
+            appId: "1:373644415076:web:f95d52950aaf2846f80f71"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Global state
+        let currentUser = null;
+        let projects = [];
+        let tasks = [];
+        let currentFilter = 'all';
+        let unsubscribeProjects = null;
+        let unsubscribeTasks = null;
+
+        // Make functions globally available
+        window.signOut = async function() {
+            try {
+                await firebaseSignOut(auth);
+                showNotification('Signed out successfully');
+            } catch (error) {
+                console.error('Sign out error:', error);
+                alert('Error signing out');
+            }
+        };
+
+        window.addProject = addProject;
+        window.addTask = addTask;
+        window.toggleTask = toggleTask;
+        window.deleteTask = deleteTask;
+        window.deleteProject = deleteProject;
+        window.refreshBriefing = refreshBriefing;
+        window.filterTasks = filterTasks;
+        window.processNaturalLanguage = processNaturalLanguage;
+
+        // Auth state observer
+        onAuthStateChanged(auth, async (user) => {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                document.getElementById('userEmail').textContent = user.email;
+                
+                // Request notification permission
+                if ('Notification' in window && Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+                
+                // Load user data
+                await loadUserData();
+                
+                // Set up real-time listeners
+                setupRealtimeListeners();
+                
+                // Set today's date as default
+                document.getElementById('taskDate').valueAsDate = new Date();
+                
+                // Start reminder checker
+                setInterval(checkReminders, 60000);
+                checkReminders();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+            }
+        });
+
+        // Google Sign In
+        document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error('Sign in error:', error);
+                alert('Error signing in with Google');
+            }
+        });
+
+        // Set up real-time listeners
+        function setupRealtimeListeners() {
+            // Listen to projects
+            const projectsRef = collection(db, 'users', currentUser.uid, 'projects');
+            unsubscribeProjects = onSnapshot(projectsRef, (snapshot) => {
+                projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProjects();
+                updateProjectDropdown();
+            });
+
+            // Listen to tasks
+            const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+            unsubscribeTasks = onSnapshot(tasksRef, (snapshot) => {
+                tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTasks();
+                refreshBriefing();
+            });
+        }
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                // Load projects
+                const projectsRef = collection(db, 'users', currentUser.uid, 'projects');
+                const projectsSnap = await getDocs(projectsRef);
+                projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Load tasks
+                const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+                const tasksSnap = await getDocs(tasksRef);
+                tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                renderProjects();
+                renderTasks();
+                refreshBriefing();
+                updateProjectDropdown();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Add Project
+        async function addProject() {
+            const name = document.getElementById('projectName').value.trim();
+            const goals = document.getElementById('projectGoals').value.trim();
+            
+            if (!name) {
+                alert('Please enter a project name');
+                return;
+            }
+            
+            const projectId = Date.now().toString();
+            const project = {
+                name: name,
+                goals: goals,
+                color: getRandomColor(),
+                createdAt: new Date().toISOString()
+            };
+            
+            try {
+                await setDoc(doc(db, 'users', currentUser.uid, 'projects', projectId), project);
+                
+                document.getElementById('projectName').value = '';
+                document.getElementById('projectGoals').value = '';
+                
+                showNotification('Project added successfully!');
+            } catch (error) {
+                console.error('Error adding project:', error);
+                alert('Error adding project');
+            }
+        }
+
+        // Add Task
+        async function addTask() {
+            const projectId = document.getElementById('taskProject').value;
+            const title = document.getElementById('taskTitle').value.trim();
+            const date = document.getElementById('taskDate').value;
+            const recurring = document.getElementById('taskRecurring').value;
+            
+            if (!projectId || !title || !date) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            const taskId = Date.now().toString();
+            const task = {
+                projectId: projectId,
+                title: title,
+                date: date,
+                recurring: recurring,
+                completed: false,
+                details: '',
+                createdAt: new Date().toISOString()
+            };
+            
+            try {
+                await setDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId), task);
+                
+                // Generate recurring instances
+                if (recurring !== 'none') {
+                    await generateRecurringTasks(task, taskId);
+                }
+                
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskDate').valueAsDate = new Date();
+                document.getElementById('taskRecurring').value = 'none';
+                
+                showNotification('Task added successfully!');
+            } catch (error) {
+                console.error('Error adding task:', error);
+                alert('Error adding task');
+            }
+        }
+
+        // Generate recurring tasks
+        async function generateRecurringTasks(baseTask, baseTaskId) {
+            const startDate = new Date(baseTask.date);
+            const endDate = new Date();
+            endDate.setFullYear(endDate.getFullYear() + 1);
+            
+            let currentDate = new Date(startDate);
+            currentDate.setDate(currentDate.getDate() + getRecurringInterval(baseTask.recurring));
+            
+            const batch = [];
+            while (currentDate <= endDate) {
+                const recurringTaskId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+                const recurringTask = {
+                    ...baseTask,
+                    date: currentDate.toISOString().split('T')[0],
+                    parentTaskId: baseTaskId
+                };
+                
+                batch.push(setDoc(doc(db, 'users', currentUser.uid, 'tasks', recurringTaskId), recurringTask));
+                currentDate.setDate(currentDate.getDate() + getRecurringInterval(baseTask.recurring));
+                
+                if (batch.length >= 50) break; // Limit to 50 recurring instances
+            }
+            
+            await Promise.all(batch);
+        }
+
+        function getRecurringInterval(type) {
+            switch(type) {
+                case 'daily': return 1;
+                case 'weekly': return 7;
+                case 'biweekly': return 14;
+                case 'monthly': return 30;
+                default: return 0;
+            }
+        }
+
+        // Process Natural Language with AI
+        async function processNaturalLanguage() {
+            const input = document.getElementById('aiInput').value.trim();
+            
+            if (!input) {
+                alert('Please enter a task description');
+                return;
+            }
+            
+            const aiResponse = document.getElementById('aiResponse');
+            aiResponse.className = 'mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm';
+            aiResponse.classList.remove('hidden');
+            aiResponse.innerHTML = '🤖 Processing with AI...';
+            
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1000,
+                        messages: [{
+                            role: 'user',
+                            content: `You are a task parser. Extract task information from natural language and return ONLY a JSON object with this exact structure:
+{
+  "title": "task title",
+  "projectName": "project name or null if not specified",
+  "date": "YYYY-MM-DD format or null if not specified",
+  "recurring": "none/daily/weekly/biweekly/monthly",
+  "details": "any additional context"
+}
+
+Available projects: ${projects.map(p => p.name).join(', ')}
+
+User input: "${input}"
+
+Return ONLY the JSON object, no other text.`
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                const aiText = data.content.find(item => item.type === 'text')?.text || '';
+                
+                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    
+                    let projectId = null;
+                    if (parsed.projectName) {
+                        const project = projects.find(p => 
+                            p.name.toLowerCase().includes(parsed.projectName.toLowerCase())
+                        );
+                        if (project) {
+                            projectId = project.id;
+                        }
+                    }
+                    
+                    if (!parsed.date) {
+                        parsed.date = new Date().toISOString().split('T')[0];
+                    }
+                    
+                    const taskId = Date.now().toString();
+                    const task = {
+                        projectId: projectId,
+                        title: parsed.title,
+                        date: parsed.date,
+                        recurring: parsed.recurring || 'none',
+                        completed: false,
+                        details: parsed.details || '',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    await setDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId), task);
+                    
+                    if (task.recurring !== 'none') {
+                        await generateRecurringTasks(task, taskId);
+                    }
+                    
+                    document.getElementById('aiInput').value = '';
+                    
+                    aiResponse.className = 'mt-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm';
+                    aiResponse.innerHTML = `✅ Task created: "${parsed.title}"${projectId ? ` in project "${projects.find(p => p.id === projectId).name}"` : ''} on ${parsed.date}`;
+                } else {
+                    throw new Error('Could not parse AI response');
+                }
+                
+            } catch (error) {
+                console.error('AI Error:', error);
+                aiResponse.className = 'mt-3 p-4 bg-red-50 border border-red-200 rounded-lg text-sm';
+                aiResponse.innerHTML = '❌ AI processing failed. Please use the Quick Add form instead.';
+            }
+        }
+
+        // Toggle task completion
+        async function toggleTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                try {
+                    await setDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId), 
+                        { ...task, completed: !task.completed });
+                } catch (error) {
+                    console.error('Error toggling task:', error);
+                }
+            }
+        }
+
+        // Delete task
+        async function deleteTask(taskId) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                try {
+                    await deleteDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId));
+                    showNotification('Task deleted');
+                } catch (error) {
+                    console.error('Error deleting task:', error);
+                }
+            }
+        }
+
+        // Delete project
+        async function deleteProject(projectId) {
+            if (confirm('Delete this project and all its tasks?')) {
+                try {
+                    // Delete project
+                    await deleteDoc(doc(db, 'users', currentUser.uid, 'projects', projectId));
+                    
+                    // Delete associated tasks
+                    const projectTasks = tasks.filter(t => t.projectId === projectId);
+                    await Promise.all(projectTasks.map(t => 
+                        deleteDoc(doc(db, 'users', currentUser.uid, 'tasks', t.id))
+                    ));
+                    
+                    showNotification('Project deleted');
+                } catch (error) {
+                    console.error('Error deleting project:', error);
+                }
+            }
+        }
+
+        // Refresh Today's Briefing
+        function refreshBriefing() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayTasks = tasks.filter(t => t.date === today && !t.completed);
+            
+            const briefingDiv = document.getElementById('todayBriefing');
+            
+            if (todayTasks.length === 0) {
+                briefingDiv.innerHTML = '<p class="text-gray-500 text-center py-8">🎉 No tasks for today! Enjoy your day.</p>';
+                return;
+            }
+            
+            briefingDiv.innerHTML = todayTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                return `
+                    <div class="task-card p-4 bg-white border-2 border-gray-200 rounded-lg animate-slide-in">
+                        <div class="flex items-start gap-3">
+                            <input 
+                                type="checkbox" 
+                                onchange="toggleTask('${task.id}')"
+                                class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                            />
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800">${task.title}</div>
+                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
+                                ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                            </div>
+                            <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-700">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render all tasks with filter
+        function renderTasks() {
+            const allTasksDiv = document.getElementById('allTasks');
+            const today = new Date().toISOString().split('T')[0];
+            
+            let filteredTasks = tasks;
+            
+            if (currentFilter === 'today') {
+                filteredTasks = tasks.filter(t => t.date === today);
+            } else if (currentFilter === 'upcoming') {
+                filteredTasks = tasks.filter(t => t.date > today && !t.completed);
+            } else if (currentFilter === 'completed') {
+                filteredTasks = tasks.filter(t => t.completed);
+            }
+            
+            filteredTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            if (filteredTasks.length === 0) {
+                allTasksDiv.innerHTML = '<p class="text-gray-500 text-center py-8">No tasks found</p>';
+                return;
+            }
+            
+            allTasksDiv.innerHTML = filteredTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const taskDate = new Date(task.date);
+                const isOverdue = taskDate < new Date() && !task.completed;
+                
+                return `
+                    <div class="task-card p-4 bg-white border-2 ${isOverdue ? 'border-red-300' : 'border-gray-200'} rounded-lg ${task.completed ? 'completed-task' : ''}">
+                        <div class="flex items-start gap-3">
+                            <input 
+                                type="checkbox" 
+                                ${task.completed ? 'checked' : ''}
+                                onchange="toggleTask('${task.id}')"
+                                class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                            />
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800 ${task.completed ? 'line-through' : ''}">${task.title}</div>
+                                <div class="text-sm text-gray-600 mt-1">
+                                    📅 ${formatDate(task.date)}
+                                    ${isOverdue ? '<span class="text-red-600 font-semibold ml-2">⚠️ OVERDUE</span>' : ''}
+                                </div>
+                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
+                                ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                            </div>
+                            <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-700">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Filter tasks
+        function filterTasks(filter) {
+            currentFilter = filter;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = 'filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700';
+            });
+            event.target.className = 'filter-btn px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold';
+            
+            renderTasks();
+        }
+
+        // Render projects
+        function renderProjects() {
+            const projectsDiv = document.getElementById('projectsList');
+            
+            if (projects.length === 0) {
+                projectsDiv.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No projects yet</p>';
+                return;
+            }
+            
+            projectsDiv.innerHTML = projects.map(project => {
+                const taskCount = tasks.filter(t => t.projectId === project.id && !t.completed).length;
+                return `
+                    <div class="p-3 bg-white border-2 border-gray-200 rounded-lg hover:border-purple-300 transition">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800" style="color: ${project.color}">${project.name}</div>
+                                <div class="text-xs text-gray-500 mt-1">${taskCount} active tasks</div>
+                            </div>
+                            <button onclick="deleteProject('${project.id}')" class="text-red-500 hover:text-red-700 text-sm">×</button>
+                        </div>
+                        ${project.goals ? `<div class="text-xs text-gray-600 mt-2 italic">${project.goals.substring(0, 100)}${project.goals.length > 100 ? '...' : ''}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update project dropdown
+        function updateProjectDropdown() {
+            const dropdown = document.getElementById('taskProject');
+            dropdown.innerHTML = '<option value="">Select Project</option>' + 
+                projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        // Check reminders
+        function checkReminders() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentHour = now.getHours();
+            
+            if (currentHour === 8) {
+                const todayTasks = tasks.filter(t => t.date === today && !t.completed);
+                if (todayTasks.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Good morning! ☀️', {
+                        body: `You have ${todayTasks.length} task${todayTasks.length > 1 ? 's' : ''} scheduled for today.`,
+                        icon: '📅'
+                    });
+                }
+            }
+            
+            const overdueTasks = tasks.filter(t => t.date < today && !t.completed);
+            if (overdueTasks.length > 0 && currentHour === 9) {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Overdue Tasks ⚠️', {
+                        body: `You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}.`,
+                        icon: '⚠️'
+                    });
+                }
+            }
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            if (dateString === today.toISOString().split('T')[0]) {
+                return 'Today';
+            } else if (dateString === tomorrow.toISOString().split('T')[0]) {
+                return 'Tomorrow';
+            } else {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+        }
+
+        function getRandomColor() {
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#30cfd0'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
