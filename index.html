@@ -99,9 +99,34 @@
                     </div>
                 </div>
 
+                <!-- Quick Reschedule Incomplete Tasks -->
+                <div id="rescheduleSection" class="glass-card rounded-xl shadow-lg p-6 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🔄 Incomplete Tasks from Today</h2>
+                    <p class="text-sm text-gray-600 mb-4">Quickly reschedule tasks you didn't complete today:</p>
+                    <div id="incompleteTasksList" class="space-y-2 mb-4">
+                        <!-- Incomplete tasks will be listed here -->
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="rescheduleAllToTomorrow()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">
+                            Move All to Tomorrow
+                        </button>
+                        <button onclick="hideRescheduleSection()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">
+                            Close
+                        </button>
+                    </div>
+                </div>
+
                 <!-- All Tasks -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">📋 All Tasks</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">📋 All Tasks</h2>
+                        <button 
+                            onclick="showRescheduleSection()" 
+                            class="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                        >
+                            🔄 Reschedule Today's Incomplete
+                        </button>
+                    </div>
                     <div class="mb-4 flex gap-2 flex-wrap">
                         <button onclick="filterTasks('all')" class="filter-btn px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold text-sm">All</button>
                         <button onclick="filterTasks('today')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Today</button>
@@ -181,6 +206,17 @@
                             <option value="biweekly">Bi-weekly</option>
                             <option value="monthly">Monthly</option>
                         </select>
+                        <select 
+                            id="taskPriority" 
+                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                        >
+                            <option value="medium">Medium Priority</option>
+                            <option value="high">🔥 High Priority (Max 3/day)</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                        <div id="priorityWarning" class="hidden p-3 bg-orange-50 border border-orange-300 rounded-lg text-sm text-orange-800">
+                            ⚠️ You already have 3 high-priority tasks today. Consider making this Medium priority.
+                        </div>
                         <button 
                             onclick="addTask()" 
                             class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
@@ -277,10 +313,26 @@
             const title = document.getElementById('taskTitle').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
+            const priority = document.getElementById('taskPriority').value;
             
             if (!projectId || !title || !date) {
                 alert('Please fill all fields');
                 return;
+            }
+            
+            // Check high priority capacity
+            if (priority === 'high') {
+                const highPriorityCount = tasks.filter(t => 
+                    t.date === date && 
+                    t.priority === 'high' && 
+                    !t.completed
+                ).length;
+                
+                if (highPriorityCount >= 3) {
+                    if (!confirm('You already have 3 high-priority tasks on this day. Add another high-priority task anyway?')) {
+                        return;
+                    }
+                }
             }
             
             const task = {
@@ -289,6 +341,7 @@
                 title: title,
                 date: date,
                 recurring: recurring,
+                priority: priority || 'medium',
                 completed: false,
                 details: '',
                 reminders: [],
@@ -309,6 +362,7 @@
             document.getElementById('taskTitle').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
+            document.getElementById('taskPriority').value = 'medium';
             
             showNotification('Task added successfully!');
         }
@@ -368,6 +422,7 @@
             document.getElementById('taskTitle').value = task.title;
             document.getElementById('taskDate').value = task.date;
             document.getElementById('taskRecurring').value = task.recurring;
+            document.getElementById('taskPriority').value = task.priority || 'medium';
             
             // Scroll to the form
             document.getElementById('taskProject').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -392,6 +447,7 @@
             const title = document.getElementById('taskTitle').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
+            const priority = document.getElementById('taskPriority').value;
             
             if (!projectId || !title || !date) {
                 alert('Please fill all fields');
@@ -405,6 +461,7 @@
                 tasks[taskIndex].title = title;
                 tasks[taskIndex].date = date;
                 tasks[taskIndex].recurring = recurring;
+                tasks[taskIndex].priority = priority || 'medium';
                 
                 saveData();
                 renderTasks();
@@ -422,6 +479,7 @@
             document.getElementById('taskTitle').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
+            document.getElementById('taskPriority').value = 'medium';
             
             const addButton = document.querySelector('#taskProject').closest('.glass-card').querySelector('button');
             addButton.textContent = 'Add Task';
@@ -457,6 +515,14 @@
             const today = new Date().toISOString().split('T')[0];
             const todayTasks = tasks.filter(t => t.date === today && !t.completed);
             
+            // Sort by priority: high -> medium -> low
+            const priorityOrder = { high: 1, medium: 2, low: 3 };
+            todayTasks.sort((a, b) => {
+                const aPriority = priorityOrder[a.priority || 'medium'];
+                const bPriority = priorityOrder[b.priority || 'medium'];
+                return aPriority - bPriority;
+            });
+            
             const briefingDiv = document.getElementById('todayBriefing');
             
             if (todayTasks.length === 0) {
@@ -464,10 +530,20 @@
                 return;
             }
             
-            briefingDiv.innerHTML = todayTasks.map(task => {
+            // Count high priority tasks
+            const highPriorityCount = todayTasks.filter(t => t.priority === 'high').length;
+            const capacityWarning = highPriorityCount > 3 ? `
+                <div class="mb-4 p-3 bg-orange-50 border border-orange-300 rounded-lg text-sm">
+                    ⚠️ You have ${highPriorityCount} high-priority tasks today. Focus on completing 3, then reassess.
+                </div>
+            ` : '';
+            
+            briefingDiv.innerHTML = capacityWarning + todayTasks.map(task => {
                 const project = projects.find(p => p.id === task.projectId);
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                const priorityColor = task.priority === 'high' ? 'border-red-300 bg-red-50' : task.priority === 'low' ? 'border-gray-200' : 'border-blue-200';
                 return `
-                    <div class="task-card p-4 bg-white border-2 border-gray-200 rounded-lg animate-slide-in">
+                    <div class="task-card p-4 bg-white border-2 ${priorityColor} rounded-lg animate-slide-in">
                         <div class="flex items-start gap-3">
                             <input 
                                 type="checkbox" 
@@ -475,7 +551,7 @@
                                 class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                             />
                             <div class="flex-1">
-                                <div class="font-semibold text-gray-800">${task.title}</div>
+                                <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
                             </div>
@@ -516,6 +592,8 @@
                 const project = projects.find(p => p.id === task.projectId);
                 const taskDate = new Date(task.date);
                 const isOverdue = taskDate < new Date() && !task.completed;
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                const priorityLabel = task.priority === 'high' ? 'High' : task.priority === 'low' ? 'Low' : 'Medium';
                 
                 return `
                     <div class="task-card p-4 bg-white border-2 ${isOverdue ? 'border-red-300' : 'border-gray-200'} rounded-lg ${task.completed ? 'completed-task' : ''}">
@@ -527,9 +605,9 @@
                                 class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                             />
                             <div class="flex-1">
-                                <div class="font-semibold text-gray-800 ${task.completed ? 'line-through' : ''}">${task.title}</div>
+                                <div class="font-semibold text-gray-800 ${task.completed ? 'line-through' : ''}">${priorityEmoji} ${task.title}</div>
                                 <div class="text-sm text-gray-600 mt-1">
-                                    📅 ${formatDate(task.date)}
+                                    📅 ${formatDate(task.date)} • ${priorityEmoji} ${priorityLabel}
                                     ${isOverdue ? '<span class="text-red-600 font-semibold ml-2">⚠️ OVERDUE</span>' : ''}
                                 </div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
@@ -709,6 +787,60 @@
             setTimeout(() => {
                 notification.remove();
             }, 3000);
+        }
+
+        // Reschedule functions
+        function showRescheduleSection() {
+            const today = new Date().toISOString().split('T')[0];
+            const incompleteTasks = tasks.filter(t => t.date === today && !t.completed);
+            
+            if (incompleteTasks.length === 0) {
+                showNotification('No incomplete tasks for today! 🎉');
+                return;
+            }
+            
+            const section = document.getElementById('rescheduleSection');
+            const listDiv = document.getElementById('incompleteTasksList');
+            
+            listDiv.innerHTML = incompleteTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                return `
+                    <div class="p-3 bg-gray-50 rounded-lg text-sm">
+                        ${priorityEmoji} ${task.title}
+                        ${project ? `<span class="text-xs text-gray-500 ml-2">(${project.name})</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            section.classList.remove('hidden');
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function hideRescheduleSection() {
+            document.getElementById('rescheduleSection').classList.add('hidden');
+        }
+
+        function rescheduleAllToTomorrow() {
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowDate = tomorrow.toISOString().split('T')[0];
+            
+            let rescheduledCount = 0;
+            tasks.forEach(task => {
+                if (task.date === today && !task.completed) {
+                    task.date = tomorrowDate;
+                    rescheduledCount++;
+                }
+            });
+            
+            saveData();
+            renderTasks();
+            refreshBriefing();
+            hideRescheduleSection();
+            
+            showNotification(`✅ ${rescheduledCount} task${rescheduledCount > 1 ? 's' : ''} rescheduled to tomorrow!`);
         }
     </script>
 </body>
