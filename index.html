@@ -75,14 +75,30 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Tab Navigation -->
+    <div class="max-w-7xl mx-auto px-4 pt-6">
+        <div class="flex gap-2 border-b border-gray-200">
+            <button onclick="switchTab('daily')" id="tab-daily" class="tab-btn px-6 py-3 font-semibold border-b-2 border-purple-600 text-purple-600">
+                📅 Daily
+            </button>
+            <button onclick="switchTab('overdue')" id="tab-overdue" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+                ⚠️ Overdue
+            </button>
+            <button onclick="switchTab('all')" id="tab-all" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+                📋 All Tasks
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout with Sidebar -->
+    <div class="flex max-w-7xl mx-auto px-4 py-8 gap-6">
+        <!-- Left Content Area -->
+        <div class="flex-1 min-w-0">
+            <!-- Daily View -->
+            <div id="view-daily">
             
-            <!-- Left Column - Daily Briefing & AI Input -->
-            <div class="lg:col-span-2 space-y-6">
-                
-
-
+            <!-- Daily View Content -->
+            <div class="space-y-6">
                 <!-- Today's Briefing -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center mb-4">
@@ -116,7 +132,7 @@
                     </div>
                 </div>
 
-                <!-- All Tasks -->
+                <!-- All Tasks in Daily View -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-bold text-gray-800">📋 All Tasks</h2>
@@ -138,43 +154,46 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Right Column - Projects & Quick Actions -->
-            <div class="space-y-6">
+        <!-- Overdue View -->
+        <div id="view-overdue" class="hidden">
+            <div class="glass-card rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">⚠️ Overdue Tasks</h2>
+                <div id="overdueTasksList" class="space-y-3">
+                    <!-- Overdue tasks will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- All Tasks View -->
+        <div id="view-all" class="hidden">
+            <div class="glass-card rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">📋 All Tasks</h2>
+                    <button 
+                        onclick="showRescheduleSection()" 
+                        class="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                    >
+                        🔄 Reschedule Today's Incomplete
+                    </button>
+                </div>
+                <div class="mb-4 flex gap-2 flex-wrap">
+                    <button onclick="filterTasks('all')" class="filter-btn px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold text-sm">All</button>
+                    <button onclick="filterTasks('today')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Today</button>
+                    <button onclick="filterTasks('upcoming')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Upcoming</button>
+                    <button onclick="filterTasks('completed')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Completed</button>
+                </div>
+                <div id="allTasksView" class="space-y-3">
+                    <!-- Tasks will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar - Always Visible -->
+    <div class="w-80 space-y-6 flex-shrink-0">
                 
-                <!-- Add Project -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">🎯 Add Project</h2>
-                    <div class="space-y-3">
-                        <input 
-                            id="projectName" 
-                            type="text" 
-                            placeholder="Project Name"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        />
-                        <textarea 
-                            id="projectGoals" 
-                            placeholder="Year-end goals & key expectations"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
-                            rows="3"
-                        ></textarea>
-                        <button 
-                            onclick="addProject()" 
-                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                        >
-                            Add Project
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Projects List -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">📂 My Projects</h2>
-                    <div id="projectsList" class="space-y-2">
-                        <!-- Projects will be populated here -->
-                    </div>
-                </div>
-
                 <!-- Manual Task Add -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">➕ Quick Add Task</h2>
@@ -226,6 +245,39 @@
                     </div>
                 </div>
 
+                <!-- Add Project -->
+                <div class="glass-card rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🎯 Add Project</h2>
+                    <div class="space-y-3">
+                        <input 
+                            id="projectName" 
+                            type="text" 
+                            placeholder="Project Name"
+                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                        />
+                        <textarea 
+                            id="projectGoals" 
+                            placeholder="Year-end goals & key expectations"
+                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
+                            rows="3"
+                        ></textarea>
+                        <button 
+                            onclick="addProject()" 
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                        >
+                            Add Project
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Projects List -->
+                <div class="glass-card rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">📂 My Projects</h2>
+                    <div id="projectsList" class="space-y-2">
+                        <!-- Projects will be populated here -->
+                    </div>
+                </div>
+
                 <!-- Data Management -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">💾 Data Management</h2>
@@ -247,7 +299,6 @@
                         </p>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
 
@@ -256,6 +307,33 @@
         let projects = JSON.parse(localStorage.getItem('workplanner_projects')) || [];
         let tasks = JSON.parse(localStorage.getItem('workplanner_tasks')) || [];
         let currentFilter = 'all';
+        let currentView = 'daily';
+
+        // Tab switching
+        function switchTab(view) {
+            currentView = view;
+            
+            // Hide all views
+            document.getElementById('view-daily').classList.add('hidden');
+            document.getElementById('view-overdue').classList.add('hidden');
+            document.getElementById('view-all').classList.add('hidden');
+            
+            // Show selected view
+            document.getElementById('view-' + view).classList.remove('hidden');
+            
+            // Update tab styles
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800';
+            });
+            document.getElementById('tab-' + view).className = 'tab-btn px-6 py-3 font-semibold border-b-2 border-purple-600 text-purple-600';
+            
+            // Render appropriate content
+            if (view === 'overdue') {
+                renderOverdueTasks();
+            } else if (view === 'all') {
+                renderAllTasksView();
+            }
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -787,6 +865,215 @@
             setTimeout(() => {
                 notification.remove();
             }, 3000);
+        }
+
+        // Reschedule functions
+        function showRescheduleSection() {
+            const today = new Date().toISOString().split('T')[0];
+            const incompleteTasks = tasks.filter(t => t.date === today && !t.completed);
+            
+            if (incompleteTasks.length === 0) {
+                showNotification('No incomplete tasks for today! 🎉');
+                return;
+            }
+            
+            const section = document.getElementById('rescheduleSection');
+            const listDiv = document.getElementById('incompleteTasksList');
+            
+            listDiv.innerHTML = incompleteTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                return `
+                    <div class="p-3 bg-gray-50 rounded-lg text-sm">
+                        ${priorityEmoji} ${task.title}
+                        ${project ? `<span class="text-xs text-gray-500 ml-2">(${project.name})</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            section.classList.remove('hidden');
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function hideRescheduleSection() {
+            document.getElementById('rescheduleSection').classList.add('hidden');
+        }
+
+        function rescheduleAllToTomorrow() {
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowDate = tomorrow.toISOString().split('T')[0];
+            
+            let rescheduledCount = 0;
+            tasks.forEach(task => {
+                if (task.date === today && !task.completed) {
+                    task.date = tomorrowDate;
+                    rescheduledCount++;
+                }
+            });
+            
+            saveData();
+            renderTasks();
+            refreshBriefing();
+            hideRescheduleSection();
+            
+            showNotification(`✅ ${rescheduledCount} task${rescheduledCount > 1 ? 's' : ''} rescheduled to tomorrow!`);
+        }
+
+        // Render Overdue Tasks
+        function renderOverdueTasks() {
+            const today = new Date().toISOString().split('T')[0];
+            const overdueTasks = tasks.filter(t => t.date < today && !t.completed);
+            
+            // Sort by date (oldest first)
+            overdueTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            const overdueDiv = document.getElementById('overdueTasksList');
+            
+            if (overdueTasks.length === 0) {
+                overdueDiv.innerHTML = '<p class="text-gray-500 text-center py-8">🎉 No overdue tasks! You\'re all caught up!</p>';
+                return;
+            }
+            
+            overdueDiv.innerHTML = `
+                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-red-800 font-semibold">⚠️ You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}</p>
+                    <div class="mt-3 flex gap-2">
+                        <button onclick="rescheduleOverdueToToday()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                            Move All to Today
+                        </button>
+                        <button onclick="rescheduleOverdueToTomorrow()" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                            Move All to Tomorrow
+                        </button>
+                    </div>
+                </div>
+            ` + overdueTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const taskDate = new Date(task.date);
+                const daysOverdue = Math.floor((new Date() - taskDate) / (1000 * 60 * 60 * 24));
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                
+                return `
+                    <div class="task-card p-4 bg-white border-2 border-red-300 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <input 
+                                type="checkbox" 
+                                onchange="toggleTask(${task.id})"
+                                class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                            />
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
+                                <div class="text-sm text-red-600 font-semibold mt-1">
+                                    ⚠️ ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue (Due: ${formatDate(task.date)})
+                                </div>
+                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
+                                ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
+                                <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700">×</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Reschedule overdue tasks
+        function rescheduleOverdueToToday() {
+            const today = new Date().toISOString().split('T')[0];
+            let count = 0;
+            
+            tasks.forEach(task => {
+                if (task.date < today && !task.completed) {
+                    task.date = today;
+                    count++;
+                }
+            });
+            
+            saveData();
+            renderOverdueTasks();
+            refreshBriefing();
+            showNotification(`✅ ${count} task${count > 1 ? 's' : ''} moved to today!`);
+        }
+
+        function rescheduleOverdueToTomorrow() {
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowDate = tomorrow.toISOString().split('T')[0];
+            let count = 0;
+            
+            tasks.forEach(task => {
+                if (task.date < today && !task.completed) {
+                    task.date = tomorrowDate;
+                    count++;
+                }
+            });
+            
+            saveData();
+            renderOverdueTasks();
+            refreshBriefing();
+            showNotification(`✅ ${count} task${count > 1 ? 's' : ''} moved to tomorrow!`);
+        }
+
+        // Render All Tasks View (duplicate of renderTasks but for separate view)
+        function renderAllTasksView() {
+            const allTasksDiv = document.getElementById('allTasksView');
+            const today = new Date().toISOString().split('T')[0];
+            
+            let filteredTasks = tasks;
+            
+            if (currentFilter === 'today') {
+                filteredTasks = tasks.filter(t => t.date === today);
+            } else if (currentFilter === 'upcoming') {
+                filteredTasks = tasks.filter(t => t.date > today && !t.completed);
+            } else if (currentFilter === 'completed') {
+                filteredTasks = tasks.filter(t => t.completed);
+            }
+            
+            // Sort by date
+            filteredTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            if (filteredTasks.length === 0) {
+                allTasksDiv.innerHTML = '<p class="text-gray-500 text-center py-8">No tasks found</p>';
+                return;
+            }
+            
+            allTasksDiv.innerHTML = filteredTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const taskDate = new Date(task.date);
+                const isOverdue = taskDate < new Date() && !task.completed;
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                const priorityLabel = task.priority === 'high' ? 'High' : task.priority === 'low' ? 'Low' : 'Medium';
+                
+                return `
+                    <div class="task-card p-4 bg-white border-2 ${isOverdue ? 'border-red-300' : 'border-gray-200'} rounded-lg ${task.completed ? 'completed-task' : ''}">
+                        <div class="flex items-start gap-3">
+                            <input 
+                                type="checkbox" 
+                                ${task.completed ? 'checked' : ''}
+                                onchange="toggleTask(${task.id})"
+                                class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                            />
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800 ${task.completed ? 'line-through' : ''}">${priorityEmoji} ${task.title}</div>
+                                <div class="text-sm text-gray-600 mt-1">
+                                    📅 ${formatDate(task.date)} • ${priorityEmoji} ${priorityLabel}
+                                    ${isOverdue ? '<span class="text-red-600 font-semibold ml-2">⚠️ OVERDUE</span>' : ''}
+                                </div>
+                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
+                                ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
+                                <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700">×</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Reschedule functions
