@@ -81,11 +81,17 @@
             <button onclick="switchTab('daily')" id="tab-daily" class="tab-btn px-6 py-3 font-semibold border-b-2 border-purple-600 text-purple-600">
                 📅 Daily
             </button>
+            <button onclick="switchTab('whiteboard')" id="tab-whiteboard" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+                🎨 Whiteboard
+            </button>
             <button onclick="switchTab('overdue')" id="tab-overdue" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
                 ⚠️ Overdue
             </button>
             <button onclick="switchTab('all')" id="tab-all" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
                 📋 All Tasks
+            </button>
+            <button onclick="switchTab('trash')" id="tab-trash" class="tab-btn px-6 py-3 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+                🗑️ Trash
             </button>
         </div>
     </div>
@@ -156,6 +162,51 @@
             </div>
         </div>
 
+        <!-- Whiteboard View -->
+        <div id="view-whiteboard" class="hidden">
+            <div class="glass-card rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">🎨 Strategic Whiteboard</h2>
+                    <div class="flex gap-2">
+                        <select id="whiteboardProject" onchange="loadWhiteboard()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+                            <option value="">Select Project</option>
+                        </select>
+                        <button onclick="clearWhiteboard()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold">
+                            Clear Canvas
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Whiteboard Toolbar -->
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg flex gap-3 items-center">
+                    <button onclick="setWhiteboardMode('box')" id="btn-box" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
+                        ◻️ Box
+                    </button>
+                    <button onclick="setWhiteboardMode('circle')" id="btn-circle" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+                        ⭕ Circle
+                    </button>
+                    <button onclick="setWhiteboardMode('arrow')" id="btn-arrow" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+                        ➡️ Arrow
+                    </button>
+                    <button onclick="setWhiteboardMode('text')" id="btn-text" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+                        📝 Text
+                    </button>
+                    <div class="border-l border-gray-300 h-8 mx-2"></div>
+                    <input type="color" id="shapeColor" value="#8B5CF6" class="w-12 h-10 rounded cursor-pointer" title="Shape Color">
+                    <button onclick="deleteSelected()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold">
+                        🗑️ Delete
+                    </button>
+                </div>
+                
+                <!-- Canvas -->
+                <div class="relative bg-white border-2 border-gray-300 rounded-lg overflow-hidden" style="height: 600px;">
+                    <canvas id="whiteboardCanvas" width="1200" height="600" class="cursor-crosshair"></canvas>
+                </div>
+                
+                <p class="text-xs text-gray-500 mt-2">💡 Draw boxes/circles, connect with arrows, double-click shapes to add text or create tasks</p>
+            </div>
+        </div>
+
         <!-- Overdue View -->
         <div id="view-overdue" class="hidden">
             <div class="glass-card rounded-xl shadow-lg p-6">
@@ -186,6 +237,22 @@
                 </div>
                 <div id="allTasksView" class="space-y-3">
                     <!-- Tasks will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Trash View -->
+        <div id="view-trash" class="hidden">
+            <div class="glass-card rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">🗑️ Trash</h2>
+                <p class="text-sm text-gray-600 mb-4">Tasks here are soft-deleted. You can restore them or permanently delete them.</p>
+                <div id="trashButtons" class="mb-4 flex gap-2">
+                    <button onclick="emptyTrash()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                        🔥 Empty Trash (Permanent)
+                    </button>
+                </div>
+                <div id="trashTasksList" class="space-y-3">
+                    <!-- Trashed tasks will be populated here -->
                 </div>
             </div>
         </div>
@@ -306,8 +373,20 @@
         // Data Storage
         let projects = JSON.parse(localStorage.getItem('workplanner_projects')) || [];
         let tasks = JSON.parse(localStorage.getItem('workplanner_tasks')) || [];
+        let whiteboards = JSON.parse(localStorage.getItem('workplanner_whiteboards')) || {};
         let currentFilter = 'all';
         let currentView = 'daily';
+
+        // Whiteboard state
+        let whiteboardMode = 'box';
+        let whiteboardShapes = [];
+        let whiteboardCanvas = null;
+        let whiteboardCtx = null;
+        let selectedShape = null;
+        let isDragging = false;
+        let dragStart = null;
+        let isDrawingArrow = false;
+        let arrowStart = null;
 
         // Tab switching
         function switchTab(view) {
@@ -315,8 +394,10 @@
             
             // Hide all views
             document.getElementById('view-daily').classList.add('hidden');
+            document.getElementById('view-whiteboard').classList.add('hidden');
             document.getElementById('view-overdue').classList.add('hidden');
             document.getElementById('view-all').classList.add('hidden');
+            document.getElementById('view-trash').classList.add('hidden');
             
             // Show selected view
             document.getElementById('view-' + view).classList.remove('hidden');
@@ -328,10 +409,15 @@
             document.getElementById('tab-' + view).className = 'tab-btn px-6 py-3 font-semibold border-b-2 border-purple-600 text-purple-600';
             
             // Render appropriate content
-            if (view === 'overdue') {
+            if (view === 'whiteboard') {
+                updateWhiteboardProjectDropdown();
+                initWhiteboard();
+            } else if (view === 'overdue') {
                 renderOverdueTasks();
             } else if (view === 'all') {
                 renderAllTasksView();
+            } else if (view === 'trash') {
+                renderTrash();
             }
         }
 
@@ -565,14 +651,46 @@
             addButton.onclick = addTask;
         }
 
-        // Delete task
+        // Delete task (move to trash)
         function deleteTask(taskId) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                tasks = tasks.filter(t => t.id !== taskId);
-                saveData();
-                renderTasks();
-                refreshBriefing();
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            // Check if this is a recurring task
+            if (task.recurring !== 'none' || task.parentTaskId) {
+                const message = task.parentTaskId 
+                    ? 'This is part of a recurring series. Delete only this instance or all recurring instances?'
+                    : 'This is a recurring task. Delete only this instance or all future instances?';
+                
+                const deleteAll = confirm(message + '\n\nClick OK to delete ALL instances, Cancel to delete only this one.');
+                
+                if (deleteAll) {
+                    // Delete all instances (with same parentTaskId or same id as parent)
+                    const parentId = task.parentTaskId || task.id;
+                    tasks.forEach(t => {
+                        if (t.id === parentId || t.parentTaskId === parentId) {
+                            t.trashed = true;
+                            t.trashedAt = new Date().toISOString();
+                        }
+                    });
+                } else {
+                    // Delete only this instance
+                    task.trashed = true;
+                    task.trashedAt = new Date().toISOString();
+                }
+            } else {
+                // Regular task - just trash it
+                task.trashed = true;
+                task.trashedAt = new Date().toISOString();
             }
+            
+            saveData();
+            renderTasks();
+            refreshBriefing();
+            if (currentView === 'overdue') renderOverdueTasks();
+            if (currentView === 'all') renderAllTasksView();
+            
+            showNotification('Task moved to trash');
         }
 
         // Delete project
@@ -591,7 +709,7 @@
         // Refresh Today's Briefing
         function refreshBriefing() {
             const today = new Date().toISOString().split('T')[0];
-            const todayTasks = tasks.filter(t => t.date === today && !t.completed);
+            const todayTasks = tasks.filter(t => t.date === today && !t.completed && !t.trashed);
             
             // Sort by priority: high -> medium -> low
             const priorityOrder = { high: 1, medium: 2, low: 3 };
@@ -648,7 +766,7 @@
             const allTasksDiv = document.getElementById('allTasks');
             const today = new Date().toISOString().split('T')[0];
             
-            let filteredTasks = tasks;
+            let filteredTasks = tasks.filter(t => !t.trashed);
             
             if (currentFilter === 'today') {
                 filteredTasks = tasks.filter(t => t.date === today);
@@ -829,6 +947,463 @@
             input.click();
         }
 
+        // Trash management functions
+        function renderTrash() {
+            const trashedTasks = tasks.filter(t => t.trashed);
+            const trashDiv = document.getElementById('trashTasksList');
+            
+            if (trashedTasks.length === 0) {
+                trashDiv.innerHTML = '<p class="text-gray-500 text-center py-8">🎉 Trash is empty!</p>';
+                document.getElementById('trashButtons').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('trashButtons').classList.remove('hidden');
+            
+            // Sort by trashed date (most recent first)
+            trashedTasks.sort((a, b) => new Date(b.trashedAt) - new Date(a.trashedAt));
+            
+            trashDiv.innerHTML = trashedTasks.map(task => {
+                const project = projects.find(p => p.id === task.projectId);
+                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                const trashedDate = new Date(task.trashedAt).toLocaleDateString();
+                
+                return `
+                    <div class="task-card p-4 bg-gray-50 border-2 border-gray-300 rounded-lg opacity-75">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-1">
+                                <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
+                                <div class="text-sm text-gray-600 mt-1">
+                                    📅 Was due: ${formatDate(task.date)}
+                                    ${task.recurring !== 'none' ? ` • 🔁 ${task.recurring}` : ''}
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">Deleted on: ${trashedDate}</div>
+                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="restoreTask(${task.id})" class="text-green-600 hover:text-green-800 font-semibold text-sm">
+                                    ↺ Restore
+                                </button>
+                                <button onclick="permanentlyDeleteTask(${task.id})" class="text-red-600 hover:text-red-800 font-semibold text-sm">
+                                    🔥 Delete Forever
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function restoreTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                delete task.trashed;
+                delete task.trashedAt;
+                saveData();
+                renderTrash();
+                renderTasks();
+                refreshBriefing();
+                showNotification('✅ Task restored!');
+            }
+        }
+
+        function permanentlyDeleteTask(taskId) {
+            if (confirm('⚠️ This will PERMANENTLY delete this task. This cannot be undone. Continue?')) {
+                tasks = tasks.filter(t => t.id !== taskId);
+                saveData();
+                renderTrash();
+                showNotification('Task permanently deleted');
+            }
+        }
+
+        function emptyTrash() {
+            const trashedCount = tasks.filter(t => t.trashed).length;
+            
+            if (trashedCount === 0) {
+                showNotification('Trash is already empty!');
+                return;
+            }
+            
+            if (confirm(`⚠️ This will PERMANENTLY delete ${trashedCount} task${trashedCount > 1 ? 's' : ''}. This cannot be undone. Continue?`)) {
+                tasks = tasks.filter(t => !t.trashed);
+                saveData();
+                renderTrash();
+                showNotification(`🔥 ${trashedCount} task${trashedCount > 1 ? 's' : ''} permanently deleted`);
+            }
+        }
+
+        // ============ WHITEBOARD FUNCTIONS ============
+        
+        function initWhiteboard() {
+            if (whiteboardCanvas) return; // Already initialized
+            
+            whiteboardCanvas = document.getElementById('whiteboardCanvas');
+            whiteboardCtx = whiteboardCanvas.getContext('2d');
+            
+            // Event listeners
+            whiteboardCanvas.addEventListener('mousedown', whiteboardMouseDown);
+            whiteboardCanvas.addEventListener('mousemove', whiteboardMouseMove);
+            whiteboardCanvas.addEventListener('mouseup', whiteboardMouseUp);
+            whiteboardCanvas.addEventListener('dblclick', whiteboardDoubleClick);
+            
+            loadWhiteboard();
+        }
+
+        function setWhiteboardMode(mode) {
+            whiteboardMode = mode;
+            
+            // Update button styles
+            ['box', 'circle', 'arrow', 'text'].forEach(m => {
+                const btn = document.getElementById('btn-' + m);
+                if (m === mode) {
+                    btn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold';
+                } else {
+                    btn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold';
+                }
+            });
+            
+            whiteboardCanvas.style.cursor = mode === 'text' ? 'text' : 'crosshair';
+        }
+
+        function whiteboardMouseDown(e) {
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (whiteboardMode === 'arrow') {
+                isDrawingArrow = true;
+                arrowStart = {x, y};
+                return;
+            }
+            
+            // Check if clicking on existing shape
+            selectedShape = null;
+            for (let i = whiteboardShapes.length - 1; i >= 0; i--) {
+                const shape = whiteboardShapes[i];
+                if (isPointInShape(x, y, shape)) {
+                    selectedShape = shape;
+                    isDragging = true;
+                    dragStart = {x, y};
+                    return;
+                }
+            }
+            
+            // Create new shape
+            if (whiteboardMode === 'box' || whiteboardMode === 'circle') {
+                const color = document.getElementById('shapeColor').value;
+                const newShape = {
+                    id: Date.now(),
+                    type: whiteboardMode,
+                    x: x - 50,
+                    y: y - 30,
+                    width: whiteboardMode === 'box' ? 100 : 60,
+                    height: 60,
+                    color: color,
+                    text: '',
+                    linkedTasks: []
+                };
+                whiteboardShapes.push(newShape);
+                saveWhiteboard();
+                drawWhiteboard();
+            }
+        }
+
+        function whiteboardMouseMove(e) {
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (isDrawingArrow && arrowStart) {
+                drawWhiteboard();
+                whiteboardCtx.strokeStyle = '#666';
+                whiteboardCtx.lineWidth = 2;
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(arrowStart.x, arrowStart.y);
+                whiteboardCtx.lineTo(x, y);
+                whiteboardCtx.stroke();
+                
+                // Draw arrowhead
+                const angle = Math.atan2(y - arrowStart.y, x - arrowStart.x);
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(x, y);
+                whiteboardCtx.lineTo(x - 10 * Math.cos(angle - Math.PI / 6), y - 10 * Math.sin(angle - Math.PI / 6));
+                whiteboardCtx.moveTo(x, y);
+                whiteboardCtx.lineTo(x - 10 * Math.cos(angle + Math.PI / 6), y - 10 * Math.sin(angle + Math.PI / 6));
+                whiteboardCtx.stroke();
+                return;
+            }
+            
+            if (isDragging && selectedShape && dragStart) {
+                const dx = x - dragStart.x;
+                const dy = y - dragStart.y;
+                selectedShape.x += dx;
+                selectedShape.y += dy;
+                dragStart = {x, y};
+                drawWhiteboard();
+            }
+        }
+
+        function whiteboardMouseUp(e) {
+            if (isDrawingArrow && arrowStart) {
+                const rect = whiteboardCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const arrow = {
+                    id: Date.now(),
+                    type: 'arrow',
+                    x1: arrowStart.x,
+                    y1: arrowStart.y,
+                    x2: x,
+                    y2: y,
+                    color: '#666'
+                };
+                whiteboardShapes.push(arrow);
+                saveWhiteboard();
+                drawWhiteboard();
+                
+                isDrawingArrow = false;
+                arrowStart = null;
+            }
+            
+            if (isDragging) {
+                saveWhiteboard();
+            }
+            
+            isDragging = false;
+            dragStart = null;
+        }
+
+        function whiteboardDoubleClick(e) {
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Find clicked shape
+            for (let i = whiteboardShapes.length - 1; i >= 0; i--) {
+                const shape = whiteboardShapes[i];
+                if (shape.type !== 'arrow' && isPointInShape(x, y, shape)) {
+                    const action = prompt('Choose action:\n1. Edit text\n2. Create linked task\n\nEnter 1 or 2:');
+                    
+                    if (action === '1') {
+                        const text = prompt('Enter text for this shape:', shape.text || '');
+                        if (text !== null) {
+                            shape.text = text;
+                            saveWhiteboard();
+                            drawWhiteboard();
+                        }
+                    } else if (action === '2') {
+                        createLinkedTask(shape);
+                    }
+                    return;
+                }
+            }
+            
+            // Add text at click position
+            if (whiteboardMode === 'text') {
+                const text = prompt('Enter text:');
+                if (text) {
+                    const textShape = {
+                        id: Date.now(),
+                        type: 'text',
+                        x: x,
+                        y: y,
+                        text: text,
+                        color: document.getElementById('shapeColor').value
+                    };
+                    whiteboardShapes.push(textShape);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                }
+            }
+        }
+
+        function isPointInShape(x, y, shape) {
+            if (shape.type === 'box') {
+                return x >= shape.x && x <= shape.x + shape.width &&
+                       y >= shape.y && y <= shape.y + shape.height;
+            } else if (shape.type === 'circle') {
+                const centerX = shape.x + shape.width / 2;
+                const centerY = shape.y + shape.height / 2;
+                const radius = shape.width / 2;
+                const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+                return dist <= radius;
+            } else if (shape.type === 'text') {
+                // Approximate text bounds
+                return x >= shape.x - 5 && x <= shape.x + 100 &&
+                       y >= shape.y - 15 && y <= shape.y + 5;
+            }
+            return false;
+        }
+
+        function drawWhiteboard() {
+            if (!whiteboardCtx) return;
+            
+            // Clear canvas
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            
+            // Draw all shapes
+            whiteboardShapes.forEach(shape => {
+                if (shape.type === 'box') {
+                    whiteboardCtx.fillStyle = shape.color + '40';
+                    whiteboardCtx.strokeStyle = shape.color;
+                    whiteboardCtx.lineWidth = 2;
+                    whiteboardCtx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                    whiteboardCtx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                    
+                    // Draw text
+                    if (shape.text) {
+                        whiteboardCtx.fillStyle = '#000';
+                        whiteboardCtx.font = '12px Arial';
+                        whiteboardCtx.textAlign = 'center';
+                        whiteboardCtx.fillText(shape.text, shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width - 10);
+                    }
+                    
+                    // Draw task indicator
+                    if (shape.linkedTasks && shape.linkedTasks.length > 0) {
+                        whiteboardCtx.fillStyle = '#22c55e';
+                        whiteboardCtx.beginPath();
+                        whiteboardCtx.arc(shape.x + shape.width - 8, shape.y + 8, 6, 0, 2 * Math.PI);
+                        whiteboardCtx.fill();
+                        whiteboardCtx.fillStyle = '#fff';
+                        whiteboardCtx.font = 'bold 10px Arial';
+                        whiteboardCtx.textAlign = 'center';
+                        whiteboardCtx.fillText(shape.linkedTasks.length, shape.x + shape.width - 8, shape.y + 11);
+                    }
+                } else if (shape.type === 'circle') {
+                    whiteboardCtx.fillStyle = shape.color + '40';
+                    whiteboardCtx.strokeStyle = shape.color;
+                    whiteboardCtx.lineWidth = 2;
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.arc(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, 0, 2 * Math.PI);
+                    whiteboardCtx.fill();
+                    whiteboardCtx.stroke();
+                    
+                    // Draw text
+                    if (shape.text) {
+                        whiteboardCtx.fillStyle = '#000';
+                        whiteboardCtx.font = '12px Arial';
+                        whiteboardCtx.textAlign = 'center';
+                        whiteboardCtx.fillText(shape.text, shape.x + shape.width / 2, shape.y + shape.height / 2);
+                    }
+                    
+                    // Draw task indicator
+                    if (shape.linkedTasks && shape.linkedTasks.length > 0) {
+                        whiteboardCtx.fillStyle = '#22c55e';
+                        whiteboardCtx.beginPath();
+                        whiteboardCtx.arc(shape.x + shape.width - 8, shape.y + 8, 6, 0, 2 * Math.PI);
+                        whiteboardCtx.fill();
+                        whiteboardCtx.fillStyle = '#fff';
+                        whiteboardCtx.font = 'bold 10px Arial';
+                        whiteboardCtx.textAlign = 'center';
+                        whiteboardCtx.fillText(shape.linkedTasks.length, shape.x + shape.width - 8, shape.y + 11);
+                    }
+                } else if (shape.type === 'arrow') {
+                    whiteboardCtx.strokeStyle = shape.color;
+                    whiteboardCtx.lineWidth = 2;
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(shape.x1, shape.y1);
+                    whiteboardCtx.lineTo(shape.x2, shape.y2);
+                    whiteboardCtx.stroke();
+                    
+                    // Draw arrowhead
+                    const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(shape.x2, shape.y2);
+                    whiteboardCtx.lineTo(shape.x2 - 10 * Math.cos(angle - Math.PI / 6), shape.y2 - 10 * Math.sin(angle - Math.PI / 6));
+                    whiteboardCtx.moveTo(shape.x2, shape.y2);
+                    whiteboardCtx.lineTo(shape.x2 - 10 * Math.cos(angle + Math.PI / 6), shape.y2 - 10 * Math.sin(angle + Math.PI / 6));
+                    whiteboardCtx.stroke();
+                } else if (shape.type === 'text') {
+                    whiteboardCtx.fillStyle = shape.color;
+                    whiteboardCtx.font = '14px Arial';
+                    whiteboardCtx.textAlign = 'left';
+                    whiteboardCtx.fillText(shape.text, shape.x, shape.y);
+                }
+            });
+        }
+
+        function createLinkedTask(shape) {
+            const taskTitle = prompt('Enter task title for "' + (shape.text || 'this shape') + '":');
+            if (!taskTitle) return;
+            
+            const projectId = document.getElementById('whiteboardProject').value;
+            if (!projectId) {
+                alert('Please select a project first!');
+                return;
+            }
+            
+            const task = {
+                id: Date.now(),
+                projectId: parseInt(projectId),
+                title: taskTitle,
+                date: new Date().toISOString().split('T')[0],
+                recurring: 'none',
+                priority: 'medium',
+                completed: false,
+                whiteboardShapeId: shape.id
+            };
+            
+            tasks.push(task);
+            
+            if (!shape.linkedTasks) shape.linkedTasks = [];
+            shape.linkedTasks.push(task.id);
+            
+            saveData();
+            saveWhiteboard();
+            drawWhiteboard();
+            
+            showNotification('✅ Task created and linked to shape!');
+        }
+
+        function deleteSelected() {
+            if (!selectedShape) {
+                alert('No shape selected. Click a shape first, then click Delete.');
+                return;
+            }
+            
+            if (confirm('Delete this shape?')) {
+                whiteboardShapes = whiteboardShapes.filter(s => s.id !== selectedShape.id);
+                selectedShape = null;
+                saveWhiteboard();
+                drawWhiteboard();
+            }
+        }
+
+        function clearWhiteboard() {
+            if (confirm('Clear entire whiteboard? This cannot be undone.')) {
+                whiteboardShapes = [];
+                saveWhiteboard();
+                drawWhiteboard();
+            }
+        }
+
+        function saveWhiteboard() {
+            const projectId = document.getElementById('whiteboardProject').value;
+            if (!projectId) return;
+            
+            whiteboards[projectId] = whiteboardShapes;
+            localStorage.setItem('workplanner_whiteboards', JSON.stringify(whiteboards));
+        }
+
+        function loadWhiteboard() {
+            const projectId = document.getElementById('whiteboardProject').value;
+            if (!projectId) {
+                whiteboardShapes = [];
+            } else {
+                whiteboardShapes = whiteboards[projectId] || [];
+            }
+            drawWhiteboard();
+        }
+
+        function updateWhiteboardProjectDropdown() {
+            const select = document.getElementById('whiteboardProject');
+            select.innerHTML = '<option value="">Select Project</option>' +
+                projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        // ============ END WHITEBOARD FUNCTIONS ============
+
         // Utility functions
         function saveData() {
             localStorage.setItem('workplanner_projects', JSON.stringify(projects));
@@ -924,7 +1499,7 @@
         // Render Overdue Tasks
         function renderOverdueTasks() {
             const today = new Date().toISOString().split('T')[0];
-            const overdueTasks = tasks.filter(t => t.date < today && !t.completed);
+            const overdueTasks = tasks.filter(t => t.date < today && !t.completed && !t.trashed);
             
             // Sort by date (oldest first)
             overdueTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -1023,7 +1598,7 @@
             const allTasksDiv = document.getElementById('allTasksView');
             const today = new Date().toISOString().split('T')[0];
             
-            let filteredTasks = tasks;
+            let filteredTasks = tasks.filter(t => !t.trashed);
             
             if (currentFilter === 'today') {
                 filteredTasks = tasks.filter(t => t.date === today);
