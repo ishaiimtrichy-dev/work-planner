@@ -193,9 +193,6 @@
                     </button>
                     <div class="border-l border-gray-300 h-8 mx-2"></div>
                     <input type="color" id="shapeColor" value="#8B5CF6" class="w-12 h-10 rounded cursor-pointer" title="Shape Color">
-                    <button onclick="deleteSelected()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold">
-                        🗑️ Delete
-                    </button>
                 </div>
                 
                 <!-- Canvas -->
@@ -203,7 +200,7 @@
                     <canvas id="whiteboardCanvas" width="1200" height="600" class="cursor-crosshair"></canvas>
                 </div>
                 
-                <p class="text-xs text-gray-500 mt-2">💡 Draw boxes/circles, connect with arrows, double-click shapes to add text or create tasks</p>
+                <p class="text-xs text-gray-500 mt-2">💡 Double-click shapes to edit text inline. Hold Shift + Double-click to create linked task. Press Enter/Esc to finish editing. Click shape + press Delete to remove it.</p>
             </div>
         </div>
 
@@ -387,6 +384,8 @@
         let dragStart = null;
         let isDrawingArrow = false;
         let arrowStart = null;
+        let editingShape = null;
+        let cursorPosition = 0;
 
         // Tab switching
         function switchTab(view) {
@@ -899,6 +898,7 @@
             const data = {
                 projects: projects,
                 tasks: tasks,
+                whiteboards: whiteboards,
                 exportDate: new Date().toISOString()
             };
             
@@ -929,7 +929,9 @@
                         if (confirm('This will replace all current data. Continue?')) {
                             projects = data.projects || [];
                             tasks = data.tasks || [];
+                            whiteboards = data.whiteboards || {};
                             saveData();
+                            localStorage.setItem('workplanner_whiteboards', JSON.stringify(whiteboards));
                             renderProjects();
                             renderTasks();
                             refreshBriefing();
@@ -1045,6 +1047,8 @@
             whiteboardCanvas.addEventListener('mousemove', whiteboardMouseMove);
             whiteboardCanvas.addEventListener('mouseup', whiteboardMouseUp);
             whiteboardCanvas.addEventListener('dblclick', whiteboardDoubleClick);
+            document.addEventListener('keydown', whiteboardKeyDown);
+            document.addEventListener('click', whiteboardGlobalClick);
             
             loadWhiteboard();
         }
@@ -1183,17 +1187,15 @@
             for (let i = whiteboardShapes.length - 1; i >= 0; i--) {
                 const shape = whiteboardShapes[i];
                 if (shape.type !== 'arrow' && isPointInShape(x, y, shape)) {
-                    const action = prompt('Choose action:\n1. Edit text\n2. Create linked task\n\nEnter 1 or 2:');
-                    
-                    if (action === '1') {
-                        const text = prompt('Enter text for this shape:', shape.text || '');
-                        if (text !== null) {
-                            shape.text = text;
-                            saveWhiteboard();
-                            drawWhiteboard();
-                        }
-                    } else if (action === '2') {
+                    // Check if shift key is held (for task creation)
+                    if (e.shiftKey) {
                         createLinkedTask(shape);
+                    } else {
+                        // Start inline editing
+                        editingShape = shape;
+                        if (!shape.text) shape.text = '';
+                        cursorPosition = shape.text.length;
+                        drawWhiteboard();
                     }
                     return;
                 }
@@ -1215,6 +1217,66 @@
                     saveWhiteboard();
                     drawWhiteboard();
                 }
+            }
+        }
+
+        function whiteboardGlobalClick(e) {
+            // If clicking outside canvas while editing, finish editing
+            if (editingShape && !whiteboardCanvas.contains(e.target)) {
+                editingShape = null;
+                saveWhiteboard();
+                drawWhiteboard();
+            }
+        }
+
+        function whiteboardKeyDown(e) {
+            // If editing text in a shape
+            if (editingShape) {
+                e.preventDefault();
+                
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    // Finish editing
+                    editingShape = null;
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'Backspace') {
+                    if (cursorPosition > 0) {
+                        editingShape.text = editingShape.text.slice(0, cursorPosition - 1) + editingShape.text.slice(cursorPosition);
+                        cursorPosition--;
+                        drawWhiteboard();
+                    }
+                } else if (e.key === 'Delete') {
+                    if (cursorPosition < editingShape.text.length) {
+                        editingShape.text = editingShape.text.slice(0, cursorPosition) + editingShape.text.slice(cursorPosition + 1);
+                        drawWhiteboard();
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    if (cursorPosition > 0) {
+                        cursorPosition--;
+                        drawWhiteboard();
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    if (cursorPosition < editingShape.text.length) {
+                        cursorPosition++;
+                        drawWhiteboard();
+                    }
+                } else if (e.key.length === 1) {
+                    // Regular character
+                    editingShape.text = editingShape.text.slice(0, cursorPosition) + e.key + editingShape.text.slice(cursorPosition);
+                    cursorPosition++;
+                    drawWhiteboard();
+                }
+                return;
+            }
+            
+            // If not editing, handle shape deletion
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShape) {
+                e.preventDefault();
+                whiteboardShapes = whiteboardShapes.filter(s => s.id !== selectedShape.id);
+                selectedShape = null;
+                saveWhiteboard();
+                drawWhiteboard();
+                showNotification('Shape deleted');
             }
         }
 
@@ -1244,19 +1306,99 @@
             
             // Draw all shapes
             whiteboardShapes.forEach(shape => {
+                const isEditing = editingShape && editingShape.id === shape.id;
+                const isSelected = selectedShape && selectedShape.id === shape.id && !isEditing;
+                
                 if (shape.type === 'box') {
                     whiteboardCtx.fillStyle = shape.color + '40';
-                    whiteboardCtx.strokeStyle = shape.color;
-                    whiteboardCtx.lineWidth = 2;
+                    whiteboardCtx.strokeStyle = isEditing ? '#FF6B00' : isSelected ? '#3B82F6' : shape.color;
+                    whiteboardCtx.lineWidth = (isEditing || isSelected) ? 3 : 2;
                     whiteboardCtx.fillRect(shape.x, shape.y, shape.width, shape.height);
                     whiteboardCtx.strokeRect(shape.x, shape.y, shape.width, shape.height);
                     
-                    // Draw text
-                    if (shape.text) {
+                    // Draw text with word wrap and auto-sizing
+                    if (shape.text || isEditing) {
                         whiteboardCtx.fillStyle = '#000';
-                        whiteboardCtx.font = '12px Arial';
                         whiteboardCtx.textAlign = 'center';
-                        whiteboardCtx.fillText(shape.text, shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width - 10);
+                        
+                        const padding = 10;
+                        const maxWidth = shape.width - (padding * 2);
+                        const maxHeight = shape.height - (padding * 2);
+                        
+                        // Start with 12px font and reduce if needed
+                        let fontSize = 12;
+                        let lines = [];
+                        let fitsInBox = false;
+                        
+                        while (fontSize >= 8 && !fitsInBox) {
+                            whiteboardCtx.font = fontSize + 'px Arial';
+                            lines = [];
+                            
+                            const words = (shape.text || '').split(' ');
+                            let currentLine = '';
+                            
+                            words.forEach(word => {
+                                const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                                const metrics = whiteboardCtx.measureText(testLine);
+                                if (metrics.width > maxWidth && currentLine) {
+                                    lines.push(currentLine);
+                                    currentLine = word;
+                                } else {
+                                    currentLine = testLine;
+                                }
+                            });
+                            if (currentLine) lines.push(currentLine);
+                            
+                            const lineHeight = fontSize + 2;
+                            const totalHeight = lines.length * lineHeight;
+                            
+                            if (totalHeight <= maxHeight) {
+                                fitsInBox = true;
+                            } else {
+                                fontSize--;
+                            }
+                        }
+                        
+                        // Draw the text
+                        const lineHeight = fontSize + 2;
+                        const totalHeight = lines.length * lineHeight;
+                        const startY = shape.y + (shape.height - totalHeight) / 2 + fontSize;
+                        
+                        lines.forEach((line, i) => {
+                            whiteboardCtx.fillText(line, shape.x + shape.width / 2, startY + i * lineHeight, maxWidth);
+                        });
+                        
+                        // Draw cursor if editing
+                        if (isEditing) {
+                            // Find which line the cursor is on
+                            let charCount = 0;
+                            let cursorLine = 0;
+                            let cursorInLine = 0;
+                            
+                            for (let i = 0; i < lines.length; i++) {
+                                const lineLength = lines[i].length + (i < lines.length - 1 ? 1 : 0); // +1 for space
+                                if (cursorPosition <= charCount + lineLength) {
+                                    cursorLine = i;
+                                    cursorInLine = cursorPosition - charCount;
+                                    break;
+                                }
+                                charCount += lineLength;
+                            }
+                            
+                            const textBeforeCursor = lines[cursorLine] ? lines[cursorLine].slice(0, cursorInLine) : '';
+                            const lineWidth = whiteboardCtx.measureText(lines[cursorLine] || '').width;
+                            const cursorOffset = whiteboardCtx.measureText(textBeforeCursor).width;
+                            
+                            const cursorX = shape.x + shape.width / 2 - lineWidth / 2 + cursorOffset;
+                            const cursorY = startY + cursorLine * lineHeight - fontSize;
+                            
+                            whiteboardCtx.strokeStyle = '#000';
+                            whiteboardCtx.lineWidth = 1;
+                            whiteboardCtx.beginPath();
+                            whiteboardCtx.moveTo(cursorX, cursorY);
+                            whiteboardCtx.lineTo(cursorX, cursorY + fontSize);
+                            whiteboardCtx.stroke();
+                        }
                     }
                     
                     // Draw task indicator
@@ -1272,19 +1414,47 @@
                     }
                 } else if (shape.type === 'circle') {
                     whiteboardCtx.fillStyle = shape.color + '40';
-                    whiteboardCtx.strokeStyle = shape.color;
-                    whiteboardCtx.lineWidth = 2;
+                    whiteboardCtx.strokeStyle = isEditing ? '#FF6B00' : isSelected ? '#3B82F6' : shape.color;
+                    whiteboardCtx.lineWidth = (isEditing || isSelected) ? 3 : 2;
                     whiteboardCtx.beginPath();
                     whiteboardCtx.arc(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, 0, 2 * Math.PI);
                     whiteboardCtx.fill();
                     whiteboardCtx.stroke();
                     
-                    // Draw text
-                    if (shape.text) {
+                    // Draw text - keep simple for circles
+                    if (shape.text || isEditing) {
                         whiteboardCtx.fillStyle = '#000';
-                        whiteboardCtx.font = '12px Arial';
+                        
+                        // Auto-size font for circles
+                        let fontSize = 12;
+                        whiteboardCtx.font = fontSize + 'px Arial';
                         whiteboardCtx.textAlign = 'center';
-                        whiteboardCtx.fillText(shape.text, shape.x + shape.width / 2, shape.y + shape.height / 2);
+                        
+                        const maxWidth = shape.width - 20;
+                        let textWidth = whiteboardCtx.measureText(shape.text || '').width;
+                        
+                        while (textWidth > maxWidth && fontSize > 8) {
+                            fontSize--;
+                            whiteboardCtx.font = fontSize + 'px Arial';
+                            textWidth = whiteboardCtx.measureText(shape.text || '').width;
+                        }
+                        
+                        whiteboardCtx.fillText(shape.text || '', shape.x + shape.width / 2, shape.y + shape.height / 2 + fontSize / 3, maxWidth);
+                        
+                        // Draw cursor if editing
+                        if (isEditing) {
+                            const textBeforeCursor = shape.text.slice(0, cursorPosition);
+                            const beforeWidth = whiteboardCtx.measureText(textBeforeCursor).width;
+                            const totalWidth = whiteboardCtx.measureText(shape.text).width;
+                            const cursorX = shape.x + shape.width / 2 - totalWidth / 2 + beforeWidth;
+                            
+                            whiteboardCtx.strokeStyle = '#000';
+                            whiteboardCtx.lineWidth = 1;
+                            whiteboardCtx.beginPath();
+                            whiteboardCtx.moveTo(cursorX, shape.y + shape.height / 2 - fontSize / 2);
+                            whiteboardCtx.lineTo(cursorX, shape.y + shape.height / 2 + fontSize / 2);
+                            whiteboardCtx.stroke();
+                        }
                     }
                     
                     // Draw task indicator
