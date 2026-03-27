@@ -57,6 +57,19 @@
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
+        
+        .drag-handle {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .task-card[draggable="true"] {
+            cursor: grab;
+        }
+        
+        .task-card[draggable="true"]:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -200,7 +213,7 @@
                     <canvas id="whiteboardCanvas" width="1200" height="600" class="cursor-crosshair"></canvas>
                 </div>
                 
-                <p class="text-xs text-gray-500 mt-2">💡 Double-click shapes to edit text inline. Hold Shift + Double-click to create linked task. Press Enter/Esc to finish editing. Click shape + press Delete to remove it.</p>
+                <p class="text-xs text-gray-500 mt-2">💡 Double-click to edit text. Shift+Double-click for task. Arrow keys resize. Ctrl+A select all. Ctrl+C copy. Ctrl+V paste. Ctrl+D duplicate. Delete removes.</p>
             </div>
         </div>
 
@@ -274,6 +287,12 @@
                             placeholder="Task title"
                             class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
                         />
+                        <textarea 
+                            id="taskDescription" 
+                            placeholder="Description (optional) - Add context, notes, or details"
+                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
+                            rows="2"
+                        ></textarea>
                         <input 
                             id="taskDate" 
                             type="date" 
@@ -380,12 +399,14 @@
         let whiteboardCanvas = null;
         let whiteboardCtx = null;
         let selectedShape = null;
+        let selectedShapes = []; // Multiple selection
         let isDragging = false;
         let dragStart = null;
         let isDrawingArrow = false;
         let arrowStart = null;
         let editingShape = null;
         let cursorPosition = 0;
+        let copiedShape = null;
 
         // Tab switching
         function switchTab(view) {
@@ -474,12 +495,13 @@
         function addTask() {
             const projectId = document.getElementById('taskProject').value;
             const title = document.getElementById('taskTitle').value.trim();
+            const description = document.getElementById('taskDescription').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
             const priority = document.getElementById('taskPriority').value;
             
             if (!projectId || !title || !date) {
-                alert('Please fill all fields');
+                alert('Please fill all required fields (project, title, date)');
                 return;
             }
             
@@ -502,6 +524,7 @@
                 id: Date.now(),
                 projectId: parseInt(projectId),
                 title: title,
+                description: description,
                 date: date,
                 recurring: recurring,
                 priority: priority || 'medium',
@@ -523,6 +546,7 @@
             refreshBriefing();
             
             document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
             document.getElementById('taskPriority').value = 'medium';
@@ -583,6 +607,7 @@
             // Populate the Quick Add form with task data
             document.getElementById('taskProject').value = task.projectId || '';
             document.getElementById('taskTitle').value = task.title;
+            document.getElementById('taskDescription').value = task.description || '';
             document.getElementById('taskDate').value = task.date;
             document.getElementById('taskRecurring').value = task.recurring;
             document.getElementById('taskPriority').value = task.priority || 'medium';
@@ -608,12 +633,13 @@
         function updateTask(taskId) {
             const projectId = document.getElementById('taskProject').value;
             const title = document.getElementById('taskTitle').value.trim();
+            const description = document.getElementById('taskDescription').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
             const priority = document.getElementById('taskPriority').value;
             
             if (!projectId || !title || !date) {
-                alert('Please fill all fields');
+                alert('Please fill all required fields (project, title, date)');
                 return;
             }
             
@@ -622,6 +648,7 @@
             if (taskIndex !== -1) {
                 tasks[taskIndex].projectId = parseInt(projectId);
                 tasks[taskIndex].title = title;
+                tasks[taskIndex].description = description;
                 tasks[taskIndex].date = date;
                 tasks[taskIndex].recurring = recurring;
                 tasks[taskIndex].priority = priority || 'medium';
@@ -640,6 +667,7 @@
         // Reset task form to Add mode
         function resetTaskForm() {
             document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
             document.getElementById('taskPriority').value = 'medium';
@@ -710,9 +738,15 @@
             const today = new Date().toISOString().split('T')[0];
             const todayTasks = tasks.filter(t => t.date === today && !t.completed && !t.trashed);
             
-            // Sort by priority: high -> medium -> low
+            // Sort by custom order if exists, then by priority
             const priorityOrder = { high: 1, medium: 2, low: 3 };
             todayTasks.sort((a, b) => {
+                // First by custom order (if set)
+                const aOrder = a.dailyOrder !== undefined ? a.dailyOrder : 999;
+                const bOrder = b.dailyOrder !== undefined ? b.dailyOrder : 999;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                
+                // Then by priority
                 const aPriority = priorityOrder[a.priority || 'medium'];
                 const bPriority = priorityOrder[b.priority || 'medium'];
                 return aPriority - bPriority;
@@ -733,13 +767,22 @@
                 </div>
             ` : '';
             
-            briefingDiv.innerHTML = capacityWarning + todayTasks.map(task => {
+            briefingDiv.innerHTML = capacityWarning + todayTasks.map((task, index) => {
                 const project = projects.find(p => p.id === task.projectId);
                 const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
                 const priorityColor = task.priority === 'high' ? 'border-red-300 bg-red-50' : task.priority === 'low' ? 'border-gray-200' : 'border-blue-200';
                 return `
-                    <div class="task-card p-4 bg-white border-2 ${priorityColor} rounded-lg animate-slide-in">
+                    <div class="task-card p-4 bg-white border-2 ${priorityColor} rounded-lg animate-slide-in" 
+                         draggable="true" 
+                         data-task-id="${task.id}"
+                         ondragstart="handleDragStart(event, ${task.id})"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event, ${task.id})"
+                         ondragend="handleDragEnd(event)">
                         <div class="flex items-start gap-3">
+                            <div class="drag-handle cursor-move text-gray-400 hover:text-gray-600" style="padding-top: 2px;">
+                                ⋮⋮
+                            </div>
                             <input 
                                 type="checkbox" 
                                 onchange="toggleTask(${task.id})"
@@ -749,6 +792,7 @@
                                 <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                                ${task.description ? `<button onclick="viewDescription(${task.id})" class="text-xs text-blue-600 hover:text-blue-800 ml-2">💬 Description</button>` : ''}
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
@@ -1034,6 +1078,76 @@
             }
         }
 
+        // View/Edit task description
+        function viewDescription(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const newDescription = prompt('Task Description:\n\n' + (task.description || 'No description yet'), task.description || '');
+            
+            if (newDescription !== null && newDescription !== task.description) {
+                task.description = newDescription.trim();
+                saveData();
+                renderTasks();
+                refreshBriefing();
+                if (currentView === 'overdue') renderOverdueTasks();
+                if (currentView === 'all') renderAllTasksView();
+                showNotification('Description updated');
+            }
+        }
+
+        // ============ DRAG AND DROP FUNCTIONS ============
+        
+        let draggedTaskId = null;
+
+        function handleDragStart(event, taskId) {
+            draggedTaskId = taskId;
+            event.target.style.opacity = '0.5';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            return false;
+        }
+
+        function handleDrop(event, targetTaskId) {
+            event.preventDefault();
+            
+            if (draggedTaskId === targetTaskId) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            const todayTasks = tasks.filter(t => t.date === today && !t.completed && !t.trashed);
+            
+            // Find indices
+            const draggedIndex = todayTasks.findIndex(t => t.id === draggedTaskId);
+            const targetIndex = todayTasks.findIndex(t => t.id === targetTaskId);
+            
+            if (draggedIndex === -1 || targetIndex === -1) return;
+            
+            // Reorder tasks
+            const [removed] = todayTasks.splice(draggedIndex, 1);
+            todayTasks.splice(targetIndex, 0, removed);
+            
+            // Update dailyOrder for all today's tasks
+            todayTasks.forEach((task, index) => {
+                const taskInArray = tasks.find(t => t.id === task.id);
+                if (taskInArray) {
+                    taskInArray.dailyOrder = index;
+                }
+            });
+            
+            saveData();
+            refreshBriefing();
+            showNotification('Task order updated');
+        }
+
+        function handleDragEnd(event) {
+            event.target.style.opacity = '1';
+            draggedTaskId = null;
+        }
+
+        // ============ END DRAG AND DROP FUNCTIONS ============
+
         // ============ WHITEBOARD FUNCTIONS ============
         
         function initWhiteboard() {
@@ -1080,6 +1194,25 @@
                 return;
             }
             
+            // If in text mode, create text immediately
+            if (whiteboardMode === 'text') {
+                const text = prompt('Enter text:');
+                if (text) {
+                    const textShape = {
+                        id: Date.now(),
+                        type: 'text',
+                        x: x,
+                        y: y,
+                        text: text,
+                        color: document.getElementById('shapeColor').value
+                    };
+                    whiteboardShapes.push(textShape);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                }
+                return;
+            }
+            
             // Check if clicking on existing shape
             selectedShape = null;
             for (let i = whiteboardShapes.length - 1; i >= 0; i--) {
@@ -1088,6 +1221,7 @@
                     selectedShape = shape;
                     isDragging = true;
                     dragStart = {x, y};
+                    drawWhiteboard(); // Redraw to show selection
                     return;
                 }
             }
@@ -1230,13 +1364,90 @@
         }
 
         function whiteboardKeyDown(e) {
+            // Handle Ctrl/Cmd shortcuts first (work in any mode)
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'a') {
+                    // Select all shapes
+                    e.preventDefault();
+                    if (!editingShape) {
+                        selectedShapes = whiteboardShapes.filter(s => s.type !== 'arrow');
+                        drawWhiteboard();
+                        showNotification(`${selectedShapes.length} shapes selected`);
+                    }
+                    return;
+                } else if (e.key === 'c') {
+                    // Copy selected shape
+                    e.preventDefault();
+                    if (selectedShape && !editingShape) {
+                        copiedShape = JSON.parse(JSON.stringify(selectedShape));
+                        showNotification('Shape copied');
+                    } else if (selectedShapes.length > 0 && !editingShape) {
+                        copiedShape = selectedShapes.map(s => JSON.parse(JSON.stringify(s)));
+                        showNotification(`${selectedShapes.length} shapes copied`);
+                    }
+                    return;
+                } else if (e.key === 'v') {
+                    // Paste copied shape
+                    e.preventDefault();
+                    if (copiedShape && !editingShape) {
+                        if (Array.isArray(copiedShape)) {
+                            // Paste multiple shapes
+                            copiedShape.forEach(shape => {
+                                const newShape = JSON.parse(JSON.stringify(shape));
+                                newShape.id = Date.now() + Math.random();
+                                newShape.x += 20;
+                                newShape.y += 20;
+                                whiteboardShapes.push(newShape);
+                            });
+                            showNotification(`${copiedShape.length} shapes pasted`);
+                        } else {
+                            // Paste single shape
+                            const newShape = JSON.parse(JSON.stringify(copiedShape));
+                            newShape.id = Date.now();
+                            newShape.x += 20;
+                            newShape.y += 20;
+                            whiteboardShapes.push(newShape);
+                            selectedShape = newShape;
+                            showNotification('Shape pasted');
+                        }
+                        saveWhiteboard();
+                        drawWhiteboard();
+                    }
+                    return;
+                } else if (e.key === 'd') {
+                    // Duplicate selected shape
+                    e.preventDefault();
+                    if (selectedShape && !editingShape) {
+                        const newShape = JSON.parse(JSON.stringify(selectedShape));
+                        newShape.id = Date.now();
+                        newShape.x += 20;
+                        newShape.y += 20;
+                        whiteboardShapes.push(newShape);
+                        selectedShape = newShape;
+                        saveWhiteboard();
+                        drawWhiteboard();
+                        showNotification('Shape duplicated');
+                    }
+                    return;
+                }
+            }
+            
             // If editing text in a shape
             if (editingShape) {
                 e.preventDefault();
                 
-                if (e.key === 'Escape' || e.key === 'Enter') {
-                    // Finish editing
+                if (e.key === 'Escape') {
+                    // Finish editing AND deselect
                     editingShape = null;
+                    selectedShape = null;
+                    selectedShapes = [];
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'Enter') {
+                    // Finish editing but keep selected
+                    const temp = editingShape;
+                    editingShape = null;
+                    selectedShape = temp;
                     saveWhiteboard();
                     drawWhiteboard();
                 } else if (e.key === 'Backspace') {
@@ -1269,14 +1480,58 @@
                 return;
             }
             
-            // If not editing, handle shape deletion
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShape) {
-                e.preventDefault();
-                whiteboardShapes = whiteboardShapes.filter(s => s.id !== selectedShape.id);
-                selectedShape = null;
-                saveWhiteboard();
-                drawWhiteboard();
-                showNotification('Shape deleted');
+            // If shape is selected (not editing), handle resizing and deletion
+            if (selectedShape && selectedShape.type !== 'arrow') {
+                // Arrow keys resize the shape
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedShape.height = Math.max(30, selectedShape.height - 10);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedShape.height = Math.min(300, selectedShape.height + 10);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    selectedShape.width = Math.max(30, selectedShape.width - 10);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    selectedShape.width = Math.min(400, selectedShape.width + 10);
+                    saveWhiteboard();
+                    drawWhiteboard();
+                } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    whiteboardShapes = whiteboardShapes.filter(s => s.id !== selectedShape.id);
+                    selectedShape = null;
+                    saveWhiteboard();
+                    drawWhiteboard();
+                    showNotification('Shape deleted');
+                } else if (e.key === 'Escape') {
+                    // Deselect shape
+                    selectedShape = null;
+                    selectedShapes = [];
+                    drawWhiteboard();
+                }
+            }
+            
+            // If multiple shapes selected
+            if (selectedShapes.length > 0 && !selectedShape) {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    const ids = selectedShapes.map(s => s.id);
+                    whiteboardShapes = whiteboardShapes.filter(s => !ids.includes(s.id));
+                    selectedShapes = [];
+                    saveWhiteboard();
+                    drawWhiteboard();
+                    showNotification(`${ids.length} shapes deleted`);
+                } else if (e.key === 'Escape') {
+                    selectedShapes = [];
+                    drawWhiteboard();
+                }
             }
         }
 
@@ -1307,7 +1562,8 @@
             // Draw all shapes
             whiteboardShapes.forEach(shape => {
                 const isEditing = editingShape && editingShape.id === shape.id;
-                const isSelected = selectedShape && selectedShape.id === shape.id && !isEditing;
+                const isSelected = (selectedShape && selectedShape.id === shape.id && !isEditing) || 
+                                   (selectedShapes.some(s => s.id === shape.id) && !isEditing);
                 
                 if (shape.type === 'box') {
                     whiteboardCtx.fillStyle = shape.color + '40';
