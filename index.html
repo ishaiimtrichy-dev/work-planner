@@ -287,12 +287,6 @@
                             placeholder="Task title"
                             class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
                         />
-                        <textarea 
-                            id="taskDescription" 
-                            placeholder="Description (optional)"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
-                            rows="2"
-                        ></textarea>
                         <input 
                             id="taskDate" 
                             type="date" 
@@ -495,8 +489,6 @@
         function addTask() {
             const projectId = document.getElementById('taskProject').value;
             const title = document.getElementById('taskTitle').value.trim();
-            const description = document.getElementById('taskDescription').value.trim();
-            const description = document.getElementById('taskDescription').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
             const priority = document.getElementById('taskPriority').value;
@@ -525,7 +517,6 @@
                 id: Date.now(),
                 projectId: parseInt(projectId),
                 title: title,
-                description: description,
                 date: date,
                 recurring: recurring,
                 priority: priority || 'medium',
@@ -547,7 +538,6 @@
             refreshBriefing();
             
             document.getElementById('taskTitle').value = '';
-            document.getElementById('taskDescription').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
             document.getElementById('taskPriority').value = 'medium';
@@ -608,7 +598,6 @@
             // Populate the Quick Add form with task data
             document.getElementById('taskProject').value = task.projectId || '';
             document.getElementById('taskTitle').value = task.title;
-            document.getElementById('taskDescription').value = task.description || '';
             document.getElementById('taskDate').value = task.date;
             document.getElementById('taskRecurring').value = task.recurring;
             document.getElementById('taskPriority').value = task.priority || 'medium';
@@ -634,7 +623,6 @@
         function updateTask(taskId) {
             const projectId = document.getElementById('taskProject').value;
             const title = document.getElementById('taskTitle').value.trim();
-            const description = document.getElementById('taskDescription').value.trim();
             const date = document.getElementById('taskDate').value;
             const recurring = document.getElementById('taskRecurring').value;
             const priority = document.getElementById('taskPriority').value;
@@ -649,7 +637,6 @@
             if (taskIndex !== -1) {
                 tasks[taskIndex].projectId = parseInt(projectId);
                 tasks[taskIndex].title = title;
-                tasks[taskIndex].description = description;
                 tasks[taskIndex].date = date;
                 tasks[taskIndex].recurring = recurring;
                 tasks[taskIndex].priority = priority || 'medium';
@@ -668,7 +655,6 @@
         // Reset task form to Add mode
         function resetTaskForm() {
             document.getElementById('taskTitle').value = '';
-            document.getElementById('taskDescription').value = '';
             document.getElementById('taskDate').valueAsDate = new Date();
             document.getElementById('taskRecurring').value = 'none';
             document.getElementById('taskPriority').value = 'medium';
@@ -678,23 +664,6 @@
             addButton.className = 'w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition';
             addButton.onclick = addTask;
         }
-
-        // View/Edit task description
-        function viewDescription(taskId) {
-            const task = tasks.find(t => t.id === taskId);
-            if (!task) return;
-            
-            const newDescription = prompt('Task Description:\n\n' + (task.description || 'No description yet'), task.description || '');
-            
-            if (newDescription !== null && newDescription !== task.description) {
-                task.description = newDescription.trim();
-                saveData();
-                renderTasks();
-                refreshBriefing();
-                showNotification('Description updated');
-            }
-        }
-
 
         // Delete task (move to trash)
         function deleteTask(taskId) {
@@ -810,7 +779,6 @@
                                 <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
-                                ${task.description ? `<button onclick="viewDescription(${task.id})" class="text-xs text-blue-600 hover:text-blue-800 ml-2">💬</button>` : ''}
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
@@ -869,7 +837,6 @@
                                 </div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
-                                ${task.description ? `<button onclick="viewDescription(${task.id})" class="text-xs text-blue-600 hover:text-blue-800 ml-2">💬</button>` : ''}
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
@@ -1971,7 +1938,6 @@
                                 </div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
-                                ${task.description ? `<button onclick="viewDescription(${task.id})" class="text-xs text-blue-600 hover:text-blue-800 ml-2">💬</button>` : ''}
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
@@ -2068,7 +2034,6 @@
                                 </div>
                                 ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : '<span class="project-badge mt-2 bg-gray-100 text-gray-600">No Project</span>'}
                                 ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
-                                ${task.description ? `<button onclick="viewDescription(${task.id})" class="text-xs text-blue-600 hover:text-blue-800 ml-2">💬</button>` : ''}
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
