@@ -122,12 +122,21 @@
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-bold text-gray-800">📅 What Do I Have Today?</h2>
-                        <button 
-                            onclick="refreshBriefing()" 
-                            class="text-purple-600 hover:text-purple-800 font-semibold text-sm"
-                        >
-                            ↻ Refresh
-                        </button>
+                        <div class="flex gap-2">
+                            <button 
+                                id="toggleViewBtn"
+                                onclick="toggleBriefingView()" 
+                                class="text-purple-600 hover:text-purple-800 font-semibold text-sm px-3 py-1 border border-purple-300 rounded"
+                            >
+                                📁 Group by Project
+                            </button>
+                            <button 
+                                onclick="refreshBriefing()" 
+                                class="text-purple-600 hover:text-purple-800 font-semibold text-sm"
+                            >
+                                ↻ Refresh
+                            </button>
+                        </div>
                     </div>
                     <div id="todayBriefing" class="space-y-3">
                         <!-- Tasks will be populated here -->
@@ -274,6 +283,27 @@
                 <!-- Manual Task Add -->
                 <div class="glass-card rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">➕ Quick Add Task</h2>
+                    
+                    <!-- Natural Language Input -->
+                    <div class="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <label class="block text-sm font-semibold text-purple-800 mb-2">🤖 Natural Language (Try: "Review PR tomorrow high priority")</label>
+                        <input 
+                            id="nlpInput" 
+                            type="text" 
+                            placeholder="Type naturally: 'Deploy backend for AuthService next Monday high priority'"
+                            class="w-full px-4 py-2 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                            onkeydown="if(event.key==='Enter') parseNaturalLanguage()"
+                        />
+                        <button 
+                            onclick="parseNaturalLanguage()" 
+                            class="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm"
+                        >
+                            Parse & Fill Form
+                        </button>
+                    </div>
+                    
+                    <div class="text-xs text-gray-500 mb-3 text-center">— OR fill manually below —</div>
+                    
                     <div class="space-y-3">
                         <select 
                             id="taskProject" 
@@ -386,6 +416,7 @@
         let whiteboards = JSON.parse(localStorage.getItem('workplanner_whiteboards')) || {};
         let currentFilter = 'all';
         let currentView = 'daily';
+        let briefingViewMode = 'priority'; // 'priority' or 'project'
 
         // Whiteboard state
         let whiteboardMode = 'box';
@@ -483,6 +514,96 @@
             document.getElementById('projectGoals').value = '';
             
             showNotification('Project added successfully!');
+        }
+
+        // Natural Language Parsing
+        function parseNaturalLanguage() {
+            const input = document.getElementById('nlpInput').value.trim().toLowerCase();
+            if (!input) return;
+            
+            let parsedData = {
+                title: input,
+                project: null,
+                date: null,
+                priority: 'medium'
+            };
+            
+            // Extract priority
+            if (input.includes('high priority') || input.includes('urgent')) {
+                parsedData.priority = 'high';
+                parsedData.title = parsedData.title.replace(/high priority|urgent/gi, '').trim();
+            } else if (input.includes('low priority')) {
+                parsedData.priority = 'low';
+                parsedData.title = parsedData.title.replace(/low priority/gi, '').trim();
+            }
+            
+            // Extract project ("for ProjectName")
+            const projectMatch = input.match(/for\s+([a-zA-Z0-9\s]+?)(?:\s+(?:today|tomorrow|next|on|this|monday|tuesday|wednesday|thursday|friday|saturday|sunday|high|low|medium)|$)/i);
+            if (projectMatch) {
+                const projectName = projectMatch[1].trim();
+                const project = projects.find(p => p.name.toLowerCase().includes(projectName.toLowerCase()));
+                if (project) {
+                    parsedData.project = project.id;
+                    parsedData.title = parsedData.title.replace(new RegExp('for\\s+' + projectName, 'gi'), '').trim();
+                }
+            }
+            
+            // Extract date
+            const today = new Date();
+            
+            if (input.includes('today')) {
+                parsedData.date = today.toISOString().split('T')[0];
+                parsedData.title = parsedData.title.replace(/today/gi, '').trim();
+            } else if (input.includes('tomorrow')) {
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                parsedData.date = tomorrow.toISOString().split('T')[0];
+                parsedData.title = parsedData.title.replace(/tomorrow/gi, '').trim();
+            } else if (input.includes('next week')) {
+                const nextWeek = new Date(today);
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                parsedData.date = nextWeek.toISOString().split('T')[0];
+                parsedData.title = parsedData.title.replace(/next week/gi, '').trim();
+            } else {
+                // Check for day names
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const dayMatch = input.match(/\b(next\s+)?(this\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
+                
+                if (dayMatch) {
+                    const targetDay = dayMatch[3].toLowerCase();
+                    const isNext = dayMatch[1] !== undefined;
+                    const currentDay = today.getDay();
+                    const targetDayIndex = days.indexOf(targetDay) + 1; // +1 because getDay() is 0-6 (Sun-Sat)
+                    
+                    let daysToAdd = (targetDayIndex - currentDay + 7) % 7;
+                    if (daysToAdd === 0 || isNext) daysToAdd += 7;
+                    
+                    const targetDate = new Date(today);
+                    targetDate.setDate(targetDate.getDate() + daysToAdd);
+                    parsedData.date = targetDate.toISOString().split('T')[0];
+                    
+                    parsedData.title = parsedData.title.replace(/\b(next\s+)?(this\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '').trim();
+                }
+            }
+            
+            // Clean up title
+            parsedData.title = parsedData.title.replace(/\s+/g, ' ').trim();
+            
+            // Populate form
+            if (parsedData.project) {
+                document.getElementById('taskProject').value = parsedData.project;
+            }
+            document.getElementById('taskTitle').value = parsedData.title.charAt(0).toUpperCase() + parsedData.title.slice(1);
+            if (parsedData.date) {
+                document.getElementById('taskDate').value = parsedData.date;
+            }
+            document.getElementById('taskPriority').value = parsedData.priority;
+            
+            // Clear NLP input
+            document.getElementById('nlpInput').value = '';
+            
+            // Show notification
+            showNotification('✨ Parsed! Review and click Add Task');
         }
 
         // Add Task
@@ -720,24 +841,24 @@
             }
         }
 
+        // Toggle briefing view mode
+        function toggleBriefingView() {
+            briefingViewMode = briefingViewMode === 'priority' ? 'project' : 'priority';
+            const btn = document.getElementById('toggleViewBtn');
+            
+            if (briefingViewMode === 'project') {
+                btn.textContent = '📊 Group by Priority';
+            } else {
+                btn.textContent = '📁 Group by Project';
+            }
+            
+            refreshBriefing();
+        }
+
         // Refresh Today's Briefing
         function refreshBriefing() {
             const today = new Date().toISOString().split('T')[0];
             const todayTasks = tasks.filter(t => t.date === today && !t.completed && !t.trashed);
-            
-            // Sort by custom order if exists, then by priority
-            const priorityOrder = { high: 1, medium: 2, low: 3 };
-            todayTasks.sort((a, b) => {
-                // First by custom order (if set)
-                const aOrder = a.dailyOrder !== undefined ? a.dailyOrder : 999;
-                const bOrder = b.dailyOrder !== undefined ? b.dailyOrder : 999;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-                
-                // Then by priority
-                const aPriority = priorityOrder[a.priority || 'medium'];
-                const bPriority = priorityOrder[b.priority || 'medium'];
-                return aPriority - bPriority;
-            });
             
             const briefingDiv = document.getElementById('todayBriefing');
             
@@ -754,40 +875,110 @@
                 </div>
             ` : '';
             
-            briefingDiv.innerHTML = capacityWarning + todayTasks.map((task, index) => {
-                const project = projects.find(p => p.id === task.projectId);
-                const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
-                const priorityColor = task.priority === 'high' ? 'border-red-300 bg-red-50' : task.priority === 'low' ? 'border-gray-200' : 'border-blue-200';
-                return `
-                    <div class="task-card p-4 bg-white border-2 ${priorityColor} rounded-lg animate-slide-in" 
-                         draggable="true" 
-                         data-task-id="${task.id}"
-                         ondragstart="handleDragStart(event, ${task.id})"
-                         ondragover="handleDragOver(event)"
-                         ondrop="handleDrop(event, ${task.id})"
-                         ondragend="handleDragEnd(event)">
-                        <div class="flex items-start gap-3">
-                            <div class="drag-handle cursor-move text-gray-400 hover:text-gray-600" style="padding-top: 2px;">
-                                ⋮⋮
+            if (briefingViewMode === 'project') {
+                // Group by project
+                const tasksByProject = {};
+                todayTasks.forEach(task => {
+                    const projectId = task.projectId || 'no-project';
+                    if (!tasksByProject[projectId]) {
+                        tasksByProject[projectId] = [];
+                    }
+                    tasksByProject[projectId].push(task);
+                });
+                
+                let html = capacityWarning;
+                
+                Object.keys(tasksByProject).forEach(projectId => {
+                    const projectTasks = tasksByProject[projectId];
+                    const project = projects.find(p => p.id === parseInt(projectId));
+                    const projectName = project ? project.name : 'No Project';
+                    const projectColor = project ? project.color : '#6B7280';
+                    
+                    html += `
+                        <div class="mb-4">
+                            <div class="flex items-center gap-2 mb-2 pb-2 border-b-2" style="border-color: ${projectColor}">
+                                <div class="w-3 h-3 rounded-full" style="background-color: ${projectColor}"></div>
+                                <h3 class="font-bold text-gray-800">${projectName}</h3>
+                                <span class="text-xs text-gray-500">(${projectTasks.length} task${projectTasks.length > 1 ? 's' : ''})</span>
                             </div>
-                            <input 
-                                type="checkbox" 
-                                onchange="toggleTask(${task.id})"
-                                class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
-                            />
-                            <div class="flex-1">
-                                <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
-                                ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
-                                ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
-                            </div>
-                            <div class="flex gap-2">
-                                <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
-                                <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700">×</button>
+                            <div class="space-y-2">
+                                ${projectTasks.map(task => {
+                                    const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                                    return `
+                                        <div class="task-card p-3 bg-white border border-gray-200 rounded-lg ml-4">
+                                            <div class="flex items-start gap-3">
+                                                <input 
+                                                    type="checkbox" 
+                                                    onchange="toggleTask(${task.id})"
+                                                    class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                                                />
+                                                <div class="flex-1">
+                                                    <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
+                                                    ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500">🔁 ${task.recurring}</span>` : ''}
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
+                                                    <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700">×</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                });
+                
+                briefingDiv.innerHTML = html;
+                
+            } else {
+                // Priority view (original)
+                const priorityOrder = { high: 1, medium: 2, low: 3 };
+                todayTasks.sort((a, b) => {
+                    const aOrder = a.dailyOrder !== undefined ? a.dailyOrder : 999;
+                    const bOrder = b.dailyOrder !== undefined ? b.dailyOrder : 999;
+                    if (aOrder !== bOrder) return aOrder - bOrder;
+                    
+                    const aPriority = priorityOrder[a.priority || 'medium'];
+                    const bPriority = priorityOrder[b.priority || 'medium'];
+                    return aPriority - bPriority;
+                });
+                
+                briefingDiv.innerHTML = capacityWarning + todayTasks.map((task, index) => {
+                    const project = projects.find(p => p.id === task.projectId);
+                    const priorityEmoji = task.priority === 'high' ? '🔥' : task.priority === 'low' ? '⬇️' : '➡️';
+                    const priorityColor = task.priority === 'high' ? 'border-red-300 bg-red-50' : task.priority === 'low' ? 'border-gray-200' : 'border-blue-200';
+                    return `
+                        <div class="task-card p-4 bg-white border-2 ${priorityColor} rounded-lg animate-slide-in" 
+                             draggable="true" 
+                             data-task-id="${task.id}"
+                             ondragstart="handleDragStart(event, ${task.id})"
+                             ondragover="handleDragOver(event)"
+                             ondrop="handleDrop(event, ${task.id})"
+                             ondragend="handleDragEnd(event)">
+                            <div class="flex items-start gap-3">
+                                <div class="drag-handle cursor-move text-gray-400 hover:text-gray-600" style="padding-top: 2px;">
+                                    ⋮⋮
+                                </div>
+                                <input 
+                                    type="checkbox" 
+                                    onchange="toggleTask(${task.id})"
+                                    class="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                                />
+                                <div class="flex-1">
+                                    <div class="font-semibold text-gray-800">${priorityEmoji} ${task.title}</div>
+                                    ${project ? `<span class="project-badge mt-2" style="background-color: ${project.color}20; color: ${project.color}">${project.name}</span>` : ''}
+                                    ${task.recurring !== 'none' ? `<span class="text-xs text-gray-500 ml-2">🔁 ${task.recurring}</span>` : ''}
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="editTask(${task.id})" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">✏️</button>
+                                    <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
 
         // Render all tasks with filter
