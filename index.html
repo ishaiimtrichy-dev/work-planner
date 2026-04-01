@@ -221,8 +221,8 @@
                 </div>
                 
                 <!-- Canvas -->
-                <div class="relative bg-white border-2 border-gray-300 rounded-lg overflow-hidden" style="height: 700px;">
-                    <canvas id="whiteboardCanvas" width="1400" height="700" class="cursor-default"></canvas>
+                <div class="relative bg-white border-2 border-gray-300 rounded-lg overflow-auto" style="height: 700px;">
+                    <canvas id="whiteboardCanvas" width="3000" height="2000" class="cursor-default"></canvas>
                 </div>
                 
                 <p class="text-xs text-gray-500 mt-2">💡 Double-click to edit text. Shift+Double-click for task. Arrow keys resize. Ctrl+A select all. Ctrl+C copy. Ctrl+V paste. Ctrl+D duplicate. Delete removes.</p>
@@ -422,19 +422,17 @@
         let briefingViewMode = 'priority'; // 'priority' or 'project'
 
         // Whiteboard state
-        let whiteboardMode = 'select';
+        let whiteboardMode = 'box';
         let whiteboardShapes = [];
         let whiteboardCanvas = null;
         let whiteboardCtx = null;
         let selectedShape = null;
-        let selectedShapes = []; // Multiple selection
         let isDragging = false;
         let dragStart = null;
         let isDrawingArrow = false;
         let arrowStart = null;
         let editingShape = null;
         let cursorPosition = 0;
-        let copiedShape = null;
 
         // Tab switching
         function switchTab(view) {
@@ -1578,71 +1576,11 @@
         }
 
         function whiteboardKeyDown(e) {
-            // Handle Ctrl/Cmd shortcuts first (work in any mode)
-            if (e.ctrlKey || e.metaKey) {
-                if (e.key === 'a') {
-                    // Select all shapes
+            // If whiteboard is active and we're using arrow keys, prevent scrolling
+            if (currentView === 'whiteboard' && 
+                (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                if (selectedShape || editingShape) {
                     e.preventDefault();
-                    if (!editingShape) {
-                        selectedShapes = whiteboardShapes.filter(s => s.type !== 'arrow');
-                        drawWhiteboard();
-                        showNotification(`${selectedShapes.length} shapes selected`);
-                    }
-                    return;
-                } else if (e.key === 'c') {
-                    // Copy selected shape
-                    e.preventDefault();
-                    if (selectedShape && !editingShape) {
-                        copiedShape = JSON.parse(JSON.stringify(selectedShape));
-                        showNotification('Shape copied');
-                    } else if (selectedShapes.length > 0 && !editingShape) {
-                        copiedShape = selectedShapes.map(s => JSON.parse(JSON.stringify(s)));
-                        showNotification(`${selectedShapes.length} shapes copied`);
-                    }
-                    return;
-                } else if (e.key === 'v') {
-                    // Paste copied shape
-                    e.preventDefault();
-                    if (copiedShape && !editingShape) {
-                        if (Array.isArray(copiedShape)) {
-                            // Paste multiple shapes
-                            copiedShape.forEach(shape => {
-                                const newShape = JSON.parse(JSON.stringify(shape));
-                                newShape.id = Date.now() + Math.random();
-                                newShape.x += 20;
-                                newShape.y += 20;
-                                whiteboardShapes.push(newShape);
-                            });
-                            showNotification(`${copiedShape.length} shapes pasted`);
-                        } else {
-                            // Paste single shape
-                            const newShape = JSON.parse(JSON.stringify(copiedShape));
-                            newShape.id = Date.now();
-                            newShape.x += 20;
-                            newShape.y += 20;
-                            whiteboardShapes.push(newShape);
-                            selectedShape = newShape;
-                            showNotification('Shape pasted');
-                        }
-                        saveWhiteboard();
-                        drawWhiteboard();
-                    }
-                    return;
-                } else if (e.key === 'd') {
-                    // Duplicate selected shape
-                    e.preventDefault();
-                    if (selectedShape && !editingShape) {
-                        const newShape = JSON.parse(JSON.stringify(selectedShape));
-                        newShape.id = Date.now();
-                        newShape.x += 20;
-                        newShape.y += 20;
-                        whiteboardShapes.push(newShape);
-                        selectedShape = newShape;
-                        saveWhiteboard();
-                        drawWhiteboard();
-                        showNotification('Shape duplicated');
-                    }
-                    return;
                 }
             }
             
@@ -1651,14 +1589,11 @@
                 e.preventDefault();
                 
                 if (e.key === 'Escape') {
-                    // Finish editing AND deselect
                     editingShape = null;
                     selectedShape = null;
-                    selectedShapes = [];
                     saveWhiteboard();
                     drawWhiteboard();
                 } else if (e.key === 'Enter') {
-                    // Finish editing but keep selected
                     const temp = editingShape;
                     editingShape = null;
                     selectedShape = temp;
@@ -1686,7 +1621,6 @@
                         drawWhiteboard();
                     }
                 } else if (e.key.length === 1) {
-                    // Regular character
                     editingShape.text = editingShape.text.slice(0, cursorPosition) + e.key + editingShape.text.slice(cursorPosition);
                     cursorPosition++;
                     drawWhiteboard();
@@ -1696,7 +1630,6 @@
             
             // If shape is selected (not editing), handle resizing and deletion
             if (selectedShape && selectedShape.type !== 'arrow') {
-                // Arrow keys resize the shape
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     selectedShape.height = Math.max(30, selectedShape.height - 10);
@@ -1725,25 +1658,22 @@
                     drawWhiteboard();
                     showNotification('Shape deleted');
                 } else if (e.key === 'Escape') {
-                    // Deselect shape
                     selectedShape = null;
-                    selectedShapes = [];
                     drawWhiteboard();
                 }
             }
             
-            // If multiple shapes selected
-            if (selectedShapes.length > 0 && !selectedShape) {
+            // Handle arrow deletion
+            if (selectedShape && selectedShape.type === 'arrow') {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                     e.preventDefault();
-                    const ids = selectedShapes.map(s => s.id);
-                    whiteboardShapes = whiteboardShapes.filter(s => !ids.includes(s.id));
-                    selectedShapes = [];
+                    whiteboardShapes = whiteboardShapes.filter(s => s.id !== selectedShape.id);
+                    selectedShape = null;
                     saveWhiteboard();
                     drawWhiteboard();
-                    showNotification(`${ids.length} shapes deleted`);
+                    showNotification('Arrow deleted');
                 } else if (e.key === 'Escape') {
-                    selectedShapes = [];
+                    selectedShape = null;
                     drawWhiteboard();
                 }
             }
@@ -1797,8 +1727,7 @@
             // Draw all shapes
             whiteboardShapes.forEach(shape => {
                 const isEditing = editingShape && editingShape.id === shape.id;
-                const isSelected = (selectedShape && selectedShape.id === shape.id && !isEditing) || 
-                                   (selectedShapes.some(s => s.id === shape.id) && !isEditing);
+                const isSelected = (selectedShape && selectedShape.id === shape.id && !isEditing);
                 
                 if (shape.type === 'box') {
                     whiteboardCtx.fillStyle = shape.color + '40';
