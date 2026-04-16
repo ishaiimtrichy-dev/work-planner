@@ -109,123 +109,59 @@
         </div>
     </div>
 
-    <!-- Main Layout with Sidebar -->
-    <div class="flex max-w-7xl mx-auto px-4 py-8 gap-6">
-        <!-- Left Content Area -->
-        <div class="flex-1 min-w-0">
+    <!-- Main Layout - Full Width -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Main Content Area -->
+        <div class="space-y-6">
             <!-- Daily View -->
             <div id="view-daily">
             
-            <!-- Daily View Content -->
-            <div class="space-y-6">
-                <!-- Today's Briefing -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-gray-800">📅 What Do I Have Today?</h2>
-                        <div class="flex gap-2">
-                            <button 
-                                id="toggleViewBtn"
-                                onclick="toggleBriefingView()" 
-                                class="text-purple-600 hover:text-purple-800 font-semibold text-sm px-3 py-1 border border-purple-300 rounded"
-                            >
-                                📁 Group by Project
-                            </button>
-                            <button 
-                                onclick="refreshBriefing()" 
-                                class="text-purple-600 hover:text-purple-800 font-semibold text-sm"
-                            >
-                                ↻ Refresh
-                            </button>
-                        </div>
-                    </div>
-                    <div id="todayBriefing" class="space-y-3">
-                        <!-- Tasks will be populated here -->
-                    </div>
+            <!-- Week View -->
+            <div class="space-y-4">
+                <!-- Week Navigation -->
+                <div class="flex justify-between items-center mb-2">
+                    <button onclick="previousWeek()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold">← Previous Week</button>
+                    <h2 class="text-lg font-bold text-gray-800" id="weekDisplay">Week of Dec 16 - 22</h2>
+                    <button onclick="nextWeek()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold">Next Week →</button>
+                    <button onclick="goToToday()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold">Today</button>
                 </div>
-
-                <!-- Quick Reschedule Incomplete Tasks -->
-                <div id="rescheduleSection" class="glass-card rounded-xl shadow-lg p-6 hidden">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">🔄 Incomplete Tasks from Today</h2>
-                    <p class="text-sm text-gray-600 mb-4">Quickly reschedule tasks you didn't complete today:</p>
-                    <div id="incompleteTasksList" class="space-y-2 mb-4">
-                        <!-- Incomplete tasks will be listed here -->
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="rescheduleAllToTomorrow()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">
-                            Move All to Tomorrow
-                        </button>
-                        <button onclick="hideRescheduleSection()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">
-                            Close
-                        </button>
-                    </div>
+                
+                <!-- Week Grid -->
+                <div class="grid grid-cols-7 gap-2" id="weekGrid">
+                    <!-- Will be populated by JS -->
                 </div>
-
-                <!-- All Tasks in Daily View -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-gray-800">📋 All Tasks</h2>
-                        <button 
-                            onclick="showRescheduleSection()" 
-                            class="text-blue-600 hover:text-blue-800 font-semibold text-sm"
-                        >
-                            🔄 Reschedule Today's Incomplete
-                        </button>
-                    </div>
-                    <div class="mb-4 flex gap-2 flex-wrap">
-                        <button onclick="filterTasks('all')" class="filter-btn px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold text-sm">All</button>
-                        <button onclick="filterTasks('today')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Today</button>
-                        <button onclick="filterTasks('upcoming')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Upcoming</button>
-                        <button onclick="filterTasks('completed')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm">Completed</button>
-                    </div>
-                    <div id="allTasks" class="space-y-3">
-                        <!-- Tasks will be populated here -->
-                    </div>
+            </div>
+            
+            <!-- Brain Dump Section -->
+            <div class="glass-card rounded-xl shadow-lg p-6 mt-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🧠 Brain Dump</h2>
+                <p class="text-sm text-gray-600 mb-3">Write everything down here. It auto-saves. Come back anytime to plan your tasks manually.</p>
+                <textarea 
+                    id="brainDumpText" 
+                    placeholder="VP wants Apply Bot discovery&#10;Stakeholder meeting about recruiter visibility&#10;PM asked for monetization analysis&#10;Design sync needed..."
+                    class="w-full h-32 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm font-mono"
+                    oninput="saveBrainDump()"
+                ></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-xs text-gray-500" id="brainDumpStatus">Auto-saved</span>
+                    <button onclick="clearBrainDump()" class="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded">Clear All</button>
                 </div>
             </div>
         </div>
 
         <!-- Whiteboard View -->
         <div id="view-whiteboard" class="hidden">
-            <div class="glass-card rounded-xl shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-800">🎨 Strategic Whiteboard</h2>
-                    <div class="flex gap-2">
-                        <select id="whiteboardProject" onchange="loadWhiteboard()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-                            <option value="">Select Project</option>
-                        </select>
-                        <button onclick="clearWhiteboard()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold">
-                            Clear Canvas
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Whiteboard Toolbar -->
-                <div class="mb-4 p-3 bg-gray-50 rounded-lg flex gap-3 items-center">
-                    <button onclick="setWhiteboardMode('select')" id="btn-select" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
-                        👆 Select
-                    </button>
-                    <button onclick="setWhiteboardMode('box')" id="btn-box" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
-                        ◻️ Box
-                    </button>
-                    <button onclick="setWhiteboardMode('circle')" id="btn-circle" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
-                        ⭕ Circle
-                    </button>
-                    <button onclick="setWhiteboardMode('arrow')" id="btn-arrow" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
-                        ➡️ Arrow
-                    </button>
-                    <button onclick="setWhiteboardMode('text')" id="btn-text" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
-                        📝 Text
-                    </button>
-                    <div class="border-l border-gray-300 h-8 mx-2"></div>
-                    <input type="color" id="shapeColor" value="#8B5CF6" class="w-12 h-10 rounded cursor-pointer" title="Shape Color">
-                </div>
-                
-                <!-- Canvas -->
-                <div class="relative bg-white border-2 border-gray-300 rounded-lg overflow-auto" style="height: 700px;">
-                    <canvas id="whiteboardCanvas" width="3000" height="2000" class="cursor-default"></canvas>
-                </div>
-                
-                <p class="text-xs text-gray-500 mt-2">💡 Double-click to edit text. Shift+Double-click for task. Arrow keys resize. Ctrl+A select all. Ctrl+C copy. Ctrl+V paste. Ctrl+D duplicate. Delete removes.</p>
+            <div class="glass-card rounded-xl shadow-lg p-8 text-center">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 Whiteboard</h2>
+                <p class="text-gray-600 mb-6">Use Excalidraw - a free, professional whiteboard for thinking, planning, and visual brainstorming.</p>
+                <a 
+                    href="https://excalidraw.com" 
+                    target="_blank"
+                    class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition"
+                >
+                    Open Excalidraw →
+                </a>
+                <p class="text-xs text-gray-500 mt-4">Opens in new tab • Auto-saves in browser • Free forever</p>
             </div>
         </div>
 
@@ -278,138 +214,31 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Right Sidebar - Always Visible -->
-    <div class="w-80 space-y-6 flex-shrink-0">
-                
-                <!-- Manual Task Add -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">➕ Quick Add Task</h2>
-                    
-                    <!-- Natural Language Input -->
-                    <div class="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                        <label class="block text-sm font-semibold text-purple-800 mb-2">🤖 Natural Language (Try: "Review PR tomorrow high priority")</label>
-                        <input 
-                            id="nlpInput" 
-                            type="text" 
-                            placeholder="Type naturally: 'Deploy backend for AuthService next Monday high priority'"
-                            class="w-full px-4 py-2 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:outline-none"
-                            onkeydown="if(event.key==='Enter') parseNaturalLanguage()"
-                        />
-                        <button 
-                            onclick="parseNaturalLanguage()" 
-                            class="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm"
-                        >
-                            Parse & Fill Form
-                        </button>
-                    </div>
-                    
-                    <div class="text-xs text-gray-500 mb-3 text-center">— OR fill manually below —</div>
-                    
-                    <div class="space-y-3">
-                        <select 
-                            id="taskProject" 
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        >
-                            <option value="">Select Project</option>
-                        </select>
-                        <input 
-                            id="taskTitle" 
-                            type="text" 
-                            placeholder="Task title"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        />
-                        <input 
-                            id="taskDate" 
-                            type="date" 
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        />
-                        <select 
-                            id="taskRecurring" 
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        >
-                            <option value="none">One-time</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="biweekly">Bi-weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                        <select 
-                            id="taskPriority" 
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        >
-                            <option value="medium">Medium Priority</option>
-                            <option value="high">🔥 High Priority (Max 3/day)</option>
-                            <option value="low">Low Priority</option>
-                        </select>
-                        <div id="priorityWarning" class="hidden p-3 bg-orange-50 border border-orange-300 rounded-lg text-sm text-orange-800">
-                            ⚠️ You already have 3 high-priority tasks today. Consider making this Medium priority.
-                        </div>
-                        <button 
-                            id="taskSubmitBtn"
-                            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                        >
-                            Add Task
-                        </button>
-                    </div>
+        
+        <!-- Data Management - Bottom Panel -->
+        <div class="glass-card rounded-xl shadow-lg p-6 mt-8">
+            <div class="max-w-2xl mx-auto">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">💾 Data Management</h2>
+                <div class="flex gap-4 justify-center">
+                    <button 
+                        onclick="exportData()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition text-sm"
+                    >
+                        📥 Export Data
+                    </button>
+                    <button 
+                        onclick="importData()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition text-sm"
+                    >
+                        📤 Import Data
+                    </button>
                 </div>
-
-                <!-- Add Project -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">🎯 Add Project</h2>
-                    <div class="space-y-3">
-                        <input 
-                            id="projectName" 
-                            type="text" 
-                            placeholder="Project Name"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
-                        />
-                        <textarea 
-                            id="projectGoals" 
-                            placeholder="Year-end goals & key expectations"
-                            class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
-                            rows="3"
-                        ></textarea>
-                        <button 
-                            onclick="addProject()" 
-                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                        >
-                            Add Project
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Projects List -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">📂 My Projects</h2>
-                    <div id="projectsList" class="space-y-2">
-                        <!-- Projects will be populated here -->
-                    </div>
-                </div>
-
-                <!-- Data Management -->
-                <div class="glass-card rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">💾 Data Management</h2>
-                    <div class="space-y-2">
-                        <button 
-                            onclick="exportData()" 
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm"
-                        >
-                            📥 Export Data
-                        </button>
-                        <button 
-                            onclick="importData()" 
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm"
-                        >
-                            📤 Import Data
-                        </button>
-                        <p class="text-xs text-gray-600 mt-2">
-                            💡 Data auto-syncs across Chrome browsers. Use export/import for backup or other browsers.
-                        </p>
-                    </div>
-                </div>
+                <p class="text-xs text-gray-600 mt-3 text-center">
+                    💡 Data auto-syncs across Chrome browsers. Use export/import for backup or other browsers.
+                </p>
+            </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -419,7 +248,9 @@
         let whiteboards = JSON.parse(localStorage.getItem('workplanner_whiteboards')) || {};
         let currentFilter = 'all';
         let currentView = 'daily';
-        let briefingViewMode = 'priority'; // 'priority' or 'project'
+        let briefingViewMode = 'priority';
+        let currentWeekStart = new Date();
+        let dayViewModes = {}; // Track view mode per day: {dateStr: 'priority' or 'project'} // 'priority' or 'project'
 
         // Whiteboard state
         let whiteboardMode = 'box';
@@ -455,9 +286,8 @@
             document.getElementById('tab-' + view).className = 'tab-btn px-6 py-3 font-semibold border-b-2 border-purple-600 text-purple-600';
             
             // Render appropriate content
-            if (view === 'whiteboard') {
-                updateWhiteboardProjectDropdown();
-                initWhiteboard();
+            if (view === 'daily') {
+                renderWeekView();
             } else if (view === 'overdue') {
                 renderOverdueTasks();
             } else if (view === 'all') {
@@ -472,15 +302,13 @@
             requestNotificationPermission();
             renderProjects();
             renderTasks();
-            refreshBriefing();
+            renderWeekView();
+            loadBrainDump(); // Load saved brain dump
             updateProjectDropdown();
             checkReminders();
-            setInterval(checkReminders, 60000); // Check every minute
+            setInterval(checkReminders, 60000);
             
-            // Set today's date as default
             document.getElementById('taskDate').valueAsDate = new Date();
-            
-            // Set up the task submit button
             document.getElementById('taskSubmitBtn').onclick = addTask;
         });
 
@@ -619,23 +447,8 @@
             const priority = document.getElementById('taskPriority').value;
             
             if (!projectId || !title || !date) {
-                alert('Please fill all fields');
+                alert('Please fill all required fields');
                 return;
-            }
-            
-            // Check high priority capacity
-            if (priority === 'high') {
-                const highPriorityCount = tasks.filter(t => 
-                    t.date === date && 
-                    t.priority === 'high' && 
-                    !t.completed
-                ).length;
-                
-                if (highPriorityCount >= 3) {
-                    if (!confirm('You already have 3 high-priority tasks on this day. Add another high-priority task anyway?')) {
-                        return;
-                    }
-                }
             }
             
             const task = {
@@ -1057,6 +870,255 @@
         }
 
         // Render projects
+        // ============ WEEK VIEW FUNCTIONS ============
+        
+        function getMondayOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+            return new Date(d.setDate(diff));
+        }
+        
+        function renderWeekView() {
+            const weekGrid = document.getElementById('weekGrid');
+            const weekDisplay = document.getElementById('weekDisplay');
+            
+            const monday = getMondayOfWeek(currentWeekStart);
+            currentWeekStart = monday;
+            
+            const endDate = new Date(monday);
+            endDate.setDate(endDate.getDate() + 6);
+            weekDisplay.textContent = `${monday.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} - ${endDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}`;
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            weekGrid.innerHTML = '';
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(monday);
+                date.setDate(date.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                
+                // Show tasks for this date PLUS any incomplete tasks from past dates
+                let dayTasks = tasks.filter(t => t.date === dateStr && !t.completed && !t.trashed);
+                
+                // If this is today or future, also show incomplete tasks from the past
+                if (dateStr >= today) {
+                    const pastIncompleteTasks = tasks.filter(t => 
+                        t.date < today && 
+                        !t.completed && 
+                        !t.trashed &&
+                        !dayTasks.find(dt => dt.id === t.id) // Don't duplicate
+                    );
+                    
+                    // Show past incomplete tasks on today's card
+                    if (dateStr === today) {
+                        dayTasks = [...pastIncompleteTasks, ...dayTasks];
+                    }
+                }
+                
+                const isToday = dateStr === today;
+                
+                // Get view mode for this day (default to priority)
+                const viewMode = dayViewModes[dateStr] || 'priority';
+                
+                const dayCard = document.createElement('div');
+                dayCard.className = `bg-white rounded-lg border-2 ${isToday ? 'border-purple-500 bg-purple-50' : 'border-gray-200'} p-3 min-h-[180px]`;
+                
+                // Header with day name and toggle
+                const header = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-bold text-sm ${isToday ? 'text-purple-700' : 'text-gray-700'}">
+                            ${date.toLocaleDateString('en-US', {weekday: 'short'})}
+                            <span class="text-xs font-normal text-gray-500 ml-1">${date.getDate()}</span>
+                        </div>
+                        <button 
+                            onclick="toggleDayView('${dateStr}')" 
+                            class="text-xs px-2 py-0.5 rounded ${viewMode === 'priority' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} hover:opacity-80"
+                        >
+                            ${viewMode === 'priority' ? '⚡ Prio' : '📁 Proj'}
+                        </button>
+                    </div>
+                `;
+                
+                // Render tasks based on view mode
+                let tasksHtml = '';
+                if (viewMode === 'priority') {
+                    // Group by priority: high, medium, low
+                    const highTasks = dayTasks.filter(t => t.priority === 'high');
+                    const medTasks = dayTasks.filter(t => t.priority === 'medium');
+                    const lowTasks = dayTasks.filter(t => t.priority === 'low');
+                    
+                    tasksHtml = `<div class="space-y-2">`;
+                    
+                    if (highTasks.length > 0) {
+                        tasksHtml += `<div class="text-xs font-semibold text-red-600 mb-1">🔥 High</div>`;
+                        highTasks.slice(0, 3).forEach(task => {
+                            tasksHtml += renderTaskCard(task, task.date < today);
+                        });
+                    }
+                    
+                    if (medTasks.length > 0) {
+                        tasksHtml += `<div class="text-xs font-semibold text-orange-600 mb-1 mt-2">➡️ Medium</div>`;
+                        medTasks.slice(0, 2).forEach(task => {
+                            tasksHtml += renderTaskCard(task, task.date < today);
+                        });
+                    }
+                    
+                    if (lowTasks.length > 0) {
+                        tasksHtml += `<div class="text-xs font-semibold text-gray-500 mb-1 mt-2">⬇️ Low</div>`;
+                        lowTasks.slice(0, 1).forEach(task => {
+                            tasksHtml += renderTaskCard(task, task.date < today);
+                        });
+                    }
+                    
+                    tasksHtml += `</div>`;
+                    
+                } else {
+                    // Group by project
+                    const projectGroups = {};
+                    dayTasks.forEach(task => {
+                        const projId = task.projectId || 'none';
+                        if (!projectGroups[projId]) projectGroups[projId] = [];
+                        projectGroups[projId].push(task);
+                    });
+                    
+                    tasksHtml = `<div class="space-y-2">`;
+                    let shownTasks = 0;
+                    
+                    Object.keys(projectGroups).forEach(projId => {
+                        if (shownTasks >= 5) return;
+                        
+                        const project = projects.find(p => p.id === parseInt(projId));
+                        const projectName = project ? project.name : 'No Project';
+                        const projectTasks = projectGroups[projId];
+                        
+                        tasksHtml += `<div class="text-xs font-semibold text-gray-600 mb-1">${projectName}</div>`;
+                        projectTasks.slice(0, 2).forEach(task => {
+                            if (shownTasks >= 5) return;
+                            tasksHtml += renderTaskCard(task, task.date < today, false); // Don't show project name
+                            shownTasks++;
+                        });
+                    });
+                    
+                    tasksHtml += `</div>`;
+                }
+                
+                const remaining = dayTasks.length - 5;
+                const moreHtml = remaining > 0 ? `<div class="text-xs text-gray-400 text-center py-1 mt-2">+${remaining} more</div>` : '';
+                
+                const addButton = `<button onclick="quickAddTask('${dateStr}')" class="mt-3 w-full text-xs text-purple-600 hover:text-purple-800 font-medium py-1 border border-purple-200 rounded hover:bg-purple-50">+ Add Task</button>`;
+                
+                dayCard.innerHTML = header + tasksHtml + moreHtml + addButton;
+                weekGrid.appendChild(dayCard);
+            }
+        }
+        
+        function renderTaskCard(task, isOverdue = false, showProject = true) {
+            const project = projects.find(p => p.id === task.projectId);
+            return `
+                <div class="text-xs p-2 ${isOverdue ? 'bg-red-50 border-red-300' : 'bg-white'} border border-gray-200 rounded cursor-pointer hover:border-purple-400 hover:bg-purple-50" onclick="expandTask(${task.id})">
+                    <div class="flex items-start gap-2">
+                        <input type="checkbox" onclick="event.stopPropagation(); toggleTask(${task.id})" class="mt-0.5 flex-shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="truncate ${isOverdue ? 'text-red-700 font-medium' : ''}">${isOverdue ? '⏰ ' : ''}${task.title}</div>
+                            ${showProject && project ? `<div class="text-xs text-gray-500 mt-0.5">${project.name}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function toggleDayView(dateStr) {
+            const current = dayViewModes[dateStr] || 'priority';
+            dayViewModes[dateStr] = current === 'priority' ? 'project' : 'priority';
+            renderWeekView();
+        }
+        
+        function previousWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            renderWeekView();
+        }
+        
+        function nextWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            renderWeekView();
+        }
+        
+        function goToToday() {
+            currentWeekStart = new Date();
+            renderWeekView();
+        }
+        
+        function quickAddTask(dateStr) {
+            const title = prompt('Task title:');
+            if (!title) return;
+            
+            const projectId = document.getElementById('taskProject').value || projects[0]?.id;
+            
+            const task = {
+                id: Date.now(),
+                projectId: parseInt(projectId) || null,
+                title: title,
+                description: '',
+                date: dateStr,
+                recurring: 'none',
+                priority: 'medium',
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(task);
+            saveData();
+            renderWeekView();
+            showNotification('Task added!');
+        }
+        
+        function expandTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const project = projects.find(p => p.id === task.projectId);
+            const details = `
+Task: ${task.title}
+Project: ${project?.name || 'None'}
+Date: ${task.date}
+Priority: ${task.priority}
+${task.description ? '\nDescription: ' + task.description : ''}
+
+[Edit] [Delete] [Complete]
+            `.trim();
+            
+            if (confirm(details + '\n\nEdit this task?')) {
+                editTask(taskId);
+            }
+        }
+        
+        // ============ BRAIN DUMP FUNCTIONS ============
+        
+        function saveBrainDump() {
+            const text = document.getElementById('brainDumpText').value;
+            localStorage.setItem('brainDump', text);
+            const status = document.getElementById('brainDumpStatus');
+            status.textContent = 'Saved';
+            setTimeout(() => {
+                status.textContent = 'Auto-saved';
+            }, 1000);
+        }
+        
+        function loadBrainDump() {
+            const text = localStorage.getItem('brainDump') || '';
+            document.getElementById('brainDumpText').value = text;
+        }
+        
+        function clearBrainDump() {
+            if (confirm('Clear all brain dump notes?')) {
+                document.getElementById('brainDumpText').value = '';
+                localStorage.removeItem('brainDump');
+            }
+        }
+        
+        // ============ PROJECT MANAGEMENT ============
+        
         function renderProjects() {
             const projectsDiv = document.getElementById('projectsList');
             
@@ -1311,23 +1373,59 @@
 
         // ============ END DRAG AND DROP FUNCTIONS ============
 
-        // ============ WHITEBOARD FUNCTIONS ============
-        
-        function initWhiteboard() {
-            if (whiteboardCanvas) return; // Already initialized
+        // Utility functions
+        function saveData() {
+            localStorage.setItem('workplanner_projects', JSON.stringify(projects));
+            localStorage.setItem('workplanner_tasks', JSON.stringify(tasks));
+        }
+
+        function formatDate(dateString) {
+            if (currentView !== 'whiteboard') return;
             
-            whiteboardCanvas = document.getElementById('whiteboardCanvas');
-            whiteboardCtx = whiteboardCanvas.getContext('2d');
-            
-            // Event listeners
-            whiteboardCanvas.addEventListener('mousedown', whiteboardMouseDown);
-            whiteboardCanvas.addEventListener('mousemove', whiteboardMouseMove);
-            whiteboardCanvas.addEventListener('mouseup', whiteboardMouseUp);
-            whiteboardCanvas.addEventListener('dblclick', whiteboardDoubleClick);
-            document.addEventListener('keydown', whiteboardKeyDown);
-            document.addEventListener('click', whiteboardGlobalClick);
-            
-            loadWhiteboard();
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            // Calculate dimensions to fit nicely
+                            let width = img.width;
+                            let height = img.height;
+                            const maxSize = 300;
+                            
+                            if (width > maxSize || height > maxSize) {
+                                const ratio = Math.min(maxSize / width, maxSize / height);
+                                width = width * ratio;
+                                height = height * ratio;
+                            }
+                            
+                            // Add image shape to whiteboard
+                            const imageShape = {
+                                id: Date.now(),
+                                type: 'image',
+                                x: 50,
+                                y: 50,
+                                width: width,
+                                height: height,
+                                imageData: event.target.result,
+                                img: img  // Store the loaded image
+                            };
+                            whiteboardShapes.push(imageShape);
+                            selectedShape = imageShape;
+                            saveWhiteboard();
+                            drawWhiteboard();
+                            showNotification('Image pasted! Resize with arrow keys');
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(blob);
+                    return;
+                }
+            }
         }
 
         function setWhiteboardMode(mode) {
@@ -1576,6 +1674,35 @@
         }
 
         function whiteboardKeyDown(e) {
+            // Copy/Paste shortcuts (Ctrl+C, Ctrl+V)
+            if ((e.ctrlKey || e.metaKey) && !editingShape) {
+                if (e.key === 'c' || e.key === 'C') {
+                    if (selectedShape) {
+                        e.preventDefault();
+                        // Copy selected shape to clipboard
+                        const shapeCopy = JSON.parse(JSON.stringify(selectedShape));
+                        localStorage.setItem('clipboard_shape', JSON.stringify(shapeCopy));
+                        showNotification('Shape copied');
+                    }
+                    return;
+                } else if (e.key === 'v' || e.key === 'V') {
+                    e.preventDefault();
+                    const clipboardData = localStorage.getItem('clipboard_shape');
+                    if (clipboardData) {
+                        const shape = JSON.parse(clipboardData);
+                        shape.id = Date.now();
+                        shape.x += 20;
+                        shape.y += 20;
+                        whiteboardShapes.push(shape);
+                        selectedShape = shape;
+                        saveWhiteboard();
+                        drawWhiteboard();
+                        showNotification('Shape pasted');
+                    }
+                    return;
+                }
+            }
+            
             // If whiteboard is active and we're using arrow keys, prevent scrolling
             if (currentView === 'whiteboard' && 
                 (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
@@ -1594,10 +1721,9 @@
                     saveWhiteboard();
                     drawWhiteboard();
                 } else if (e.key === 'Enter') {
-                    const temp = editingShape;
-                    editingShape = null;
-                    selectedShape = temp;
-                    saveWhiteboard();
+                    // Add newline character
+                    editingShape.text = editingShape.text.slice(0, cursorPosition) + '\n' + editingShape.text.slice(cursorPosition);
+                    cursorPosition++;
                     drawWhiteboard();
                 } else if (e.key === 'Backspace') {
                     if (cursorPosition > 0) {
@@ -1630,6 +1756,9 @@
             
             // If shape is selected (not editing), handle resizing and deletion
             if (selectedShape && selectedShape.type !== 'arrow') {
+                const maxWidth = selectedShape.type === 'image' ? 1000 : 400;
+                const maxHeight = selectedShape.type === 'image' ? 1000 : 300;
+                
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     selectedShape.height = Math.max(30, selectedShape.height - 10);
@@ -1637,7 +1766,7 @@
                     drawWhiteboard();
                 } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    selectedShape.height = Math.min(300, selectedShape.height + 10);
+                    selectedShape.height = Math.min(maxHeight, selectedShape.height + 10);
                     saveWhiteboard();
                     drawWhiteboard();
                 } else if (e.key === 'ArrowLeft') {
@@ -1647,7 +1776,7 @@
                     drawWhiteboard();
                 } else if (e.key === 'ArrowRight') {
                     e.preventDefault();
-                    selectedShape.width = Math.min(400, selectedShape.width + 10);
+                    selectedShape.width = Math.min(maxWidth, selectedShape.width + 10);
                     saveWhiteboard();
                     drawWhiteboard();
                 } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -1680,7 +1809,7 @@
         }
 
         function isPointInShape(x, y, shape) {
-            if (shape.type === 'box') {
+            if (shape.type === 'box' || shape.type === 'image') {
                 return x >= shape.x && x <= shape.x + shape.width &&
                        y >= shape.y && y <= shape.y + shape.height;
             } else if (shape.type === 'circle') {
@@ -1754,20 +1883,24 @@
                             whiteboardCtx.font = fontSize + 'px Arial';
                             lines = [];
                             
-                            const words = (shape.text || '').split(' ');
-                            let currentLine = '';
-                            
-                            words.forEach(word => {
-                                const testLine = currentLine + (currentLine ? ' ' : '') + word;
-                                const metrics = whiteboardCtx.measureText(testLine);
-                                if (metrics.width > maxWidth && currentLine) {
-                                    lines.push(currentLine);
-                                    currentLine = word;
-                                } else {
-                                    currentLine = testLine;
-                                }
+                            // Split by newlines first, then wrap each paragraph
+                            const paragraphs = (shape.text || '').split('\n');
+                            paragraphs.forEach(para => {
+                                const words = para.split(' ');
+                                let currentLine = '';
+                                
+                                words.forEach(word => {
+                                    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                                    const metrics = whiteboardCtx.measureText(testLine);
+                                    if (metrics.width > maxWidth && currentLine) {
+                                        lines.push(currentLine);
+                                        currentLine = word;
+                                    } else {
+                                        currentLine = testLine;
+                                    }
+                                });
+                                if (currentLine) lines.push(currentLine);
                             });
-                            if (currentLine) lines.push(currentLine);
                             
                             const lineHeight = fontSize + 2;
                             const totalHeight = lines.length * lineHeight;
@@ -1790,34 +1923,52 @@
                         
                         // Draw cursor if editing
                         if (isEditing) {
-                            // Find which line the cursor is on
+                            // Count newlines to find cursor position
                             let charCount = 0;
                             let cursorLine = 0;
-                            let cursorInLine = 0;
+                            const textWithNewlines = shape.text || '';
+                            const paragraphs = textWithNewlines.split('\n');
                             
-                            for (let i = 0; i < lines.length; i++) {
-                                const lineLength = lines[i].length + (i < lines.length - 1 ? 1 : 0); // +1 for space
-                                if (cursorPosition <= charCount + lineLength) {
-                                    cursorLine = i;
-                                    cursorInLine = cursorPosition - charCount;
-                                    break;
+                            for (let p = 0; p < paragraphs.length; p++) {
+                                const words = paragraphs[p].split(' ');
+                                let paraLines = [];
+                                let currentLine = '';
+                                
+                                words.forEach(word => {
+                                    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                                    const metrics = whiteboardCtx.measureText(testLine);
+                                    if (metrics.width > maxWidth && currentLine) {
+                                        paraLines.push(currentLine);
+                                        currentLine = word;
+                                    } else {
+                                        currentLine = testLine;
+                                    }
+                                });
+                                if (currentLine) paraLines.push(currentLine);
+                                
+                                for (let l = 0; l < paraLines.length; l++) {
+                                    const lineLen = paraLines[l].length + 1; // +1 for space or newline
+                                    if (cursorPosition <= charCount + lineLen) {
+                                        cursorLine = lines.indexOf(paraLines[l]);
+                                        const cursorInLine = cursorPosition - charCount;
+                                        const textBeforeCursor = paraLines[l].slice(0, cursorInLine);
+                                        const lineWidth = whiteboardCtx.measureText(paraLines[l]).width;
+                                        const cursorOffset = whiteboardCtx.measureText(textBeforeCursor).width;
+                                        
+                                        const cursorX = shape.x + shape.width / 2 - lineWidth / 2 + cursorOffset;
+                                        const cursorY = startY + cursorLine * lineHeight - fontSize;
+                                        
+                                        whiteboardCtx.strokeStyle = '#000';
+                                        whiteboardCtx.lineWidth = 1;
+                                        whiteboardCtx.beginPath();
+                                        whiteboardCtx.moveTo(cursorX, cursorY);
+                                        whiteboardCtx.lineTo(cursorX, cursorY + fontSize);
+                                        whiteboardCtx.stroke();
+                                        return;
+                                    }
+                                    charCount += lineLen;
                                 }
-                                charCount += lineLength;
                             }
-                            
-                            const textBeforeCursor = lines[cursorLine] ? lines[cursorLine].slice(0, cursorInLine) : '';
-                            const lineWidth = whiteboardCtx.measureText(lines[cursorLine] || '').width;
-                            const cursorOffset = whiteboardCtx.measureText(textBeforeCursor).width;
-                            
-                            const cursorX = shape.x + shape.width / 2 - lineWidth / 2 + cursorOffset;
-                            const cursorY = startY + cursorLine * lineHeight - fontSize;
-                            
-                            whiteboardCtx.strokeStyle = '#000';
-                            whiteboardCtx.lineWidth = 1;
-                            whiteboardCtx.beginPath();
-                            whiteboardCtx.moveTo(cursorX, cursorY);
-                            whiteboardCtx.lineTo(cursorX, cursorY + fontSize);
-                            whiteboardCtx.stroke();
                         }
                     }
                     
@@ -1920,6 +2071,23 @@
                     whiteboardCtx.font = '14px Arial';
                     whiteboardCtx.textAlign = 'left';
                     whiteboardCtx.fillText(shape.text, shape.x, shape.y);
+                } else if (shape.type === 'image') {
+                    // Draw image - load if not already loaded
+                    if (!shape.img) {
+                        shape.img = new Image();
+                        shape.img.src = shape.imageData;
+                    }
+                    
+                    if (shape.img.complete) {
+                        whiteboardCtx.drawImage(shape.img, shape.x, shape.y, shape.width, shape.height);
+                    }
+                    
+                    // Draw selection border if selected
+                    if (isSelected) {
+                        whiteboardCtx.strokeStyle = '#3B82F6';
+                        whiteboardCtx.lineWidth = 3;
+                        whiteboardCtx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                    }
                 }
             });
         }
