@@ -1050,19 +1050,77 @@
         }
         
         function quickAddTask(dateStr) {
-            const title = prompt('Task title:');
-            if (!title) return;
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'addTaskModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
             
-            const projectId = document.getElementById('taskProject').value || projects[0]?.id;
+            const dateObj = new Date(dateStr);
+            const dateDisplay = dateObj.toLocaleDateString('en-US', {weekday: 'long', month: 'short', day: 'numeric'});
+            
+            modal.innerHTML = `
+                <div style="background:white;border-radius:16px;padding:32px;max-width:500px;width:100%;">
+                    <h2 style="font-size:24px;font-weight:bold;margin-bottom:8px;">Add New Task</h2>
+                    <p style="color:#6b7280;margin-bottom:24px;">${dateDisplay}</p>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">TITLE</label>
+                        <input type="text" id="newTaskTitle" placeholder="Enter task title..." style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;" autofocus>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">PRIORITY</label>
+                        <select id="newTaskPriority" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;">
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom:24px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">NOTES (optional)</label>
+                        <textarea id="newTaskNotes" placeholder="Add context, details, or requirements..." style="width:100%;min-height:100px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div style="display:flex;gap:12px;">
+                        <button onclick="createNewTask('${dateStr}')" style="flex:1;background:#8B5CF6;color:white;border:none;border-radius:8px;padding:14px;font-weight:600;cursor:pointer;">Add Task</button>
+                        <button onclick="document.getElementById('addTaskModal').remove()" style="background:#e5e7eb;border:none;border-radius:8px;padding:14px 24px;font-weight:600;cursor:pointer;">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            
+            // Close on ESC
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+            
+            document.body.appendChild(modal);
+            
+            // Focus title input after a brief delay
+            setTimeout(() => document.getElementById('newTaskTitle')?.focus(), 100);
+        }
+        
+        function createNewTask(dateStr) {
+            const title = document.getElementById('newTaskTitle').value.trim();
+            if (!title) {
+                alert('Please enter a task title');
+                return;
+            }
             
             const task = {
                 id: Date.now(),
-                projectId: parseInt(projectId) || null,
+                projectId: projects[0]?.id || null,
                 title: title,
-                description: '',
+                description: document.getElementById('newTaskNotes').value.trim(),
                 date: dateStr,
                 recurring: 'none',
-                priority: 'medium',
+                priority: document.getElementById('newTaskPriority').value,
                 completed: false,
                 createdAt: new Date().toISOString()
             };
@@ -1070,6 +1128,7 @@
             tasks.push(task);
             saveData();
             renderWeekView();
+            document.getElementById('addTaskModal').remove();
             showNotification('Task added!');
         }
         
@@ -1078,19 +1137,95 @@
             if (!task) return;
             
             const project = projects.find(p => p.id === task.projectId);
-            const details = `
-Task: ${task.title}
-Project: ${project?.name || 'None'}
-Date: ${task.date}
-Priority: ${task.priority}
-${task.description ? '\nDescription: ' + task.description : ''}
-
-[Edit] [Delete] [Complete]
-            `.trim();
             
-            if (confirm(details + '\n\nEdit this task?')) {
-                editTask(taskId);
-            }
+            // Simple escape function
+            const esc = (str) => {
+                if (!str) return '';
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            };
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'taskModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+            
+            modal.innerHTML = `
+                <div style="background:white;border-radius:16px;padding:32px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;">
+                    <h2 style="font-size:24px;font-weight:bold;margin-bottom:24px;">Task Details</h2>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">TITLE</label>
+                        <input type="text" id="modalTitle" value="${esc(task.title)}" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;">
+                    </div>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">PROJECT</label>
+                            <div style="padding:12px;background:#f9fafb;border-radius:8px;">${esc(project ? project.name : 'None')}</div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">PRIORITY</label>
+                            <select id="modalPriority" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;">
+                                <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                                <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                                <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">DATE</label>
+                        <input type="date" id="modalDate" value="${task.date}" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;">
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">NOTES</label>
+                        <textarea id="modalNotes" placeholder="Add notes, context, updates..." style="width:100%;min-height:150px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;resize:vertical;">${esc(task.description || '')}</textarea>
+                    </div>
+                    
+                    <div style="display:flex;align-items:center;gap:8px;padding:12px;background:#fef3c7;border-radius:8px;margin-bottom:16px;">
+                        <input type="checkbox" id="modalCompleted" ${task.completed ? 'checked' : ''} style="width:18px;height:18px;">
+                        <label for="modalCompleted" style="cursor:pointer;">Mark as completed</label>
+                    </div>
+                    
+                    <div style="display:flex;gap:12px;">
+                        <button onclick="saveTaskFromModal(${taskId})" style="flex:1;background:#8B5CF6;color:white;border:none;border-radius:8px;padding:14px;font-weight:600;cursor:pointer;">Save</button>
+                        <button onclick="document.getElementById('taskModal').remove()" style="background:#e5e7eb;border:none;border-radius:8px;padding:14px 24px;font-weight:600;cursor:pointer;">Cancel</button>
+                    </div>
+                    
+                    <button onclick="if(confirm('Delete permanently?')){deleteTaskPermanently(${taskId});document.getElementById('taskModal').remove();}" style="width:100%;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:12px;cursor:pointer;">Delete Task</button>
+                </div>
+            `;
+            
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            
+            // Close on ESC key
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+            
+            document.body.appendChild(modal);
+        }
+        
+        function saveTaskFromModal(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            task.title = document.getElementById('modalTitle').value;
+            task.priority = document.getElementById('modalPriority').value;
+            task.date = document.getElementById('modalDate').value;
+            task.description = document.getElementById('modalNotes').value;
+            task.completed = document.getElementById('modalCompleted').checked;
+            
+            saveData();
+            renderWeekView();
+            renderTasks();
+            document.getElementById('taskModal').remove();
+            showNotification('Task updated');
         }
         
         // ============ BRAIN DUMP FUNCTIONS ============
