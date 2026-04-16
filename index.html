@@ -521,6 +521,7 @@
             if (task) {
                 task.completed = !task.completed;
                 saveData();
+                renderWeekView(); // Refresh week view to hide/show completed tasks
                 renderTasks();
                 refreshBriefing();
             }
