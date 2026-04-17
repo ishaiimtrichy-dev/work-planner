@@ -526,6 +526,17 @@
                 refreshBriefing();
             }
         }
+        
+        function deleteTaskPermanently(taskId) {
+            if (confirm('Delete this task permanently?')) {
+                tasks = tasks.filter(t => t.id !== taskId);
+                saveData();
+                renderWeekView();
+                renderTasks();
+                refreshBriefing();
+                showNotification('Task deleted');
+            }
+        }
 
         // Edit task
         function editTask(taskId) {
@@ -1255,7 +1266,7 @@
                     
                     <div style="margin-bottom:16px;">
                         <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">DATE</label>
-                        <input type="date" id="modalDate" value="${task.date}" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;">
+                        <input type="date" id="modalDate" value="${task.date}" onchange="changeDateFromModal(${taskId})" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;">
                     </div>
                     
                     <div style="margin-bottom:16px;">
@@ -1295,18 +1306,27 @@
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
             
-            task.title = document.getElementById('modalTitle').value;
-            task.priority = document.getElementById('modalPriority').value;
-            task.date = document.getElementById('modalDate').value;
-            task.description = document.getElementById('modalNotes').value;
-            task.completed = document.getElementById('modalCompleted').checked;
-            
-            saveData();
-            renderWeekView();
-            renderTasks();
-            refreshBriefing();
-            document.getElementById('taskModal').remove();
-            showNotification('Task updated');
+            try {
+                task.title = document.getElementById('modalTitle').value;
+                task.priority = document.getElementById('modalPriority').value;
+                task.date = document.getElementById('modalDate').value;
+                task.description = document.getElementById('modalNotes').value;
+                task.completed = document.getElementById('modalCompleted').checked;
+                
+                saveData();
+                renderWeekView();
+                renderTasks();
+                refreshBriefing();
+                
+                // Force close the modal
+                const modal = document.getElementById('taskModal');
+                if (modal) modal.remove();
+                
+                showNotification('Task updated');
+            } catch (error) {
+                console.error('Error saving task:', error);
+                alert('Error saving task. Please try again.');
+            }
         }
         
         function completeTaskFromModal(taskId) {
@@ -1322,6 +1342,23 @@
             refreshBriefing();
             document.getElementById('taskModal').remove();
             showNotification(task.completed ? 'Task completed!' : 'Task reopened');
+        }
+        
+        function changeDateFromModal(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const newDate = document.getElementById('modalDate').value;
+            if (!newDate || newDate === task.date) return;
+            
+            task.date = newDate;
+            
+            saveData();
+            renderWeekView();
+            renderTasks();
+            refreshBriefing();
+            document.getElementById('taskModal').remove();
+            showNotification('Task moved to ' + new Date(newDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
         }
         
         // ============ BRAIN DUMP FUNCTIONS ============
